@@ -36,11 +36,15 @@ static DEFINE_SPINLOCK(tz_lock);
  */
 #define MIN_BUSY		1000
 #define MAX_TZ_VERSION		0
+#define LONG_FLOOR		50000
+#define HIST			5
+#define TARGET			80
+#define CAP			75
 /*
-* Use BUSY_BIN to check for fully busy rendering
-* intervals that may need early intervention when
-* seen with LONG_FRAME lengths
-*/
+ * Use BUSY_BIN to check for fully busy rendering
+ * intervals that may need early intervention when
+ * seen with LONG_FRAME lengths
+ */
 #define BUSY_BIN		95
 #define LONG_FRAME		25000
 
@@ -187,10 +191,12 @@ static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq,
 	struct devfreq_msm_adreno_tz_data *priv = devfreq->data;
 	struct devfreq_dev_status stats;
 	int val, level = 0;
+	static int busy_bin, frame_flag;
 	unsigned int scm_data[3];
 	static int busy_bin, frame_flag;
 
 	/* keeps stats.private_data == NULL   */
+
 	result = devfreq->profile->get_dev_status(devfreq->dev.parent, &stats);
 	if (result) {
 		pr_err(TAG "get_status failed %d\n", result);
