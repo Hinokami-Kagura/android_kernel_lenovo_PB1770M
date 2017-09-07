@@ -1,0 +1,2 @@
+add_lunch_combo cm_PB1770M-eng
+add_lunch_combo cm_PB1770M-userdebug
