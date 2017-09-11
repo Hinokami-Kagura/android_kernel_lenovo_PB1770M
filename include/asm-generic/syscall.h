@@ -42,8 +42,6 @@ int syscall_get_nr(struct task_struct *task, struct pt_regs *regs);
 
 /**
  * syscall_rollback - roll back registers after an aborted system call
- * @task:	task of interest, must be in system call exit tracing
- * @regs:	task_pt_regs() of @task
  *
  * It's only valid to call this when @task is stopped for system
  * call exit tracing (due to TIF_SYSCALL_TRACE or TIF_SYSCALL_AUDIT),
@@ -155,5 +153,5 @@ void syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
  * Architectures which permit CONFIG_HAVE_ARCH_SECCOMP_FILTER must
  * provide an implementation of this.
  */
-int syscall_get_arch(struct task_struct *task, struct pt_regs *regs);
+int syscall_get_arch(void);
 #endif	/* _ASM_SYSCALL_H */
