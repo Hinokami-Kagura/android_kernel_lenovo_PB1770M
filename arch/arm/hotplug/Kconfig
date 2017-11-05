@@ -9,5 +9,10 @@ config MSM_HOTPLUG
 	depends on HOTPLUG_CPU
 	default y
 	help
-	  The MSM hotplug driver controls on-/offlining of additional cores based
-	  on current cpu load.
+	  The MSM hotplug driver controls on-/offlining of additional cores based on current cpu load.
+
+config MAKO_HOTPLUG
+ 	bool "Mako Hotplug"
+ 	default n
+ 	help
+ 	  Mako Hotplug: A custom hotplug by fransico franco
