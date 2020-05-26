@@ -15,5 +15,10 @@ config MACH_LENOVO_MSM8939
 
 menu "Lenovo board selection"
 
+config MACH_PB1770M
+	bool "PB1770M board"
+	select MACH_LENOVO_MSM8939
+	help
+	  Support for Lenovo pb1770m variant
 
 endmenu
