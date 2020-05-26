@@ -1,0 +1,19 @@
+# lenovo configuration options
+
+config MACH_LENOVO
+	bool "Lenovo device"
+	depends on ARCH_MSM
+	help
+	  Support for Lenovo products
+
+config MACH_LENOVO_MSM8939
+	bool "Lenovo MSM8939"
+	depends on ARCH_MSM8916
+	select MACH_LENOVO
+	help
+	  Support for MSM8939 Lenovo variants
+
+menu "Lenovo board selection"
+
+
+endmenu
