@@ -969,6 +969,7 @@ static int mdss_fb_suspend_sub(struct msm_fb_data_type *mfd)
 	if ((!mfd) || (mfd->key != MFD_KEY))
 		return 0;
 
+	printk("%s\n", __func__);
 	pr_debug("mdss_fb suspend index=%d\n", mfd->index);
 
 	mdss_fb_pan_idle(mfd);
@@ -1007,6 +1008,7 @@ static int mdss_fb_resume_sub(struct msm_fb_data_type *mfd)
 {
 	int ret = 0;
 
+	printk("%s\n", __func__);
 	if ((!mfd) || (mfd->key != MFD_KEY))
 		return 0;
 
@@ -1214,6 +1216,7 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 			mfd->bl_level_scaled = temp;
 			bl_notify_needed = true;
 		}
+		mfd->panel_info->bl_store = backlight_led.brightness;
 		if (bl_notify_needed)
 			mdss_fb_bl_update_notify(mfd);
 	}

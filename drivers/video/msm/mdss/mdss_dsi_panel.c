@@ -21,6 +21,7 @@
 #include <linux/leds.h>
 #include <linux/qpnp/pwm.h>
 #include <linux/err.h>
+#include <linux/hardware_info.h>
 
 #include "mdss_dsi.h"
 #include "mdss_livedisplay.h"
@@ -293,8 +294,11 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			return rc;
 		}
 		if (!pinfo->cont_splash_enabled) {
-			if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
-				gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
+			//if (gpio_is_valid(ctrl_pdata->disp_en_gpio)){
+			//	gpio_direction_output((ctrl_pdata->disp_en_gpio), 1);
+				//gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
+			//	}
+			//msleep(20);
 
 			for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
 				gpio_set_value((ctrl_pdata->rst_gpio),
@@ -547,6 +551,7 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 		pr_err("%s: Invalid input data\n", __func__);
 		return;
 	}
+	pr_info("%s bl_level=%d \n", __func__, bl_level);
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
@@ -556,6 +561,44 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	 * for the backlight brightness. If the brightness is less
 	 * than it, the controller can malfunction.
 	 */
+
+	#if 0
+	/*
+	 * Modify the backlight according to the brightness standard level A, For PVT
+	 * Lmax = 352.3 cd/m2	-->   bl level = 218
+	 * Ldefault = 170.6 cd/m2	-->   bl level = 103
+	 * Lmin = 5.2 cd/m2	-->   bl level = 3
+	*/
+	if(bl_level == 0)
+		bl_level = 0;
+	else if(bl_level < 10)
+		bl_level = 3;
+	else if(bl_level < 103)
+		//this formula set real BL as 3 when setting 10, set real BL as 103 when setting 102
+		bl_level = ((bl_level * 25) / 23) - 7;
+	else
+		//this formula set real BL as 105 when setting 103, set real BL as 218 when setting 255
+		bl_level = ((bl_level * 107) / 143) + 28;
+	#else
+	/*
+	 * Modify the backlight according to the brightness standard level B, For PVT
+	 * Lmax = 312.6d/m2	-->   bl level = 178
+	 * Ldefault = 142m2	-->   bl level = 79
+	 * Lmin = 5.3 cd/m2	-->   bl level = 3
+	*/
+	if(bl_level == 0)
+		bl_level = 0;
+	else if(bl_level < 10)
+		bl_level = 3;
+	else if(bl_level < 103)
+		//this formula set real BL as 3 when setting 10, set real BL as 79 when setting 102
+		bl_level = ((bl_level * 19) / 23) - 5;
+	else
+		//this formula set real BL as 79 when setting 103, set real BL as 178 when setting 255
+		bl_level = ((bl_level * 11) / 17) + 13;
+	#endif
+
+	printk("%s real bl_level = %d\n", __func__, bl_level);
 
 	if ((bl_level < pdata->panel_info.bl_min) && (bl_level != 0))
 		bl_level = pdata->panel_info.bl_min;
@@ -603,6 +646,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
 	struct mdss_panel_info *pinfo;
 
+	printk("%s\n", __func__);
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
@@ -624,6 +668,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 
 end:
 	pinfo->blank_state = MDSS_PANEL_BLANK_UNBLANK;
+        pdata->set_backlight(pdata, pinfo->bl_store);
 	pr_debug("%s:-\n", __func__);
 	return 0;
 }
@@ -669,6 +714,7 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
 	struct mdss_panel_info *pinfo;
 
+	printk("%s\n", __func__);
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
@@ -690,6 +736,7 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 
 end:
 	pinfo->blank_state = MDSS_PANEL_BLANK_BLANK;
+	pdata->set_backlight(pdata, 0);
 	pr_debug("%s:-\n", __func__);
 	return 0;
 }
@@ -1902,6 +1949,9 @@ int mdss_dsi_panel_init(struct device_node *node,
 	ctrl_pdata->low_power_config = mdss_dsi_panel_low_power_config;
 	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
 	ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
+
+	hw_info_set(ODMM_HD_INFO_LCD,
+		"LCD", "NT35532", "innolux(QUNCHUANG)", "NA", "1080*1920,video mode");
 
 	return 0;
 }

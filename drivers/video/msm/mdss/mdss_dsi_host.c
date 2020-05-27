@@ -1019,7 +1019,9 @@ int mdss_dsi_reg_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 	if (ret > 0) {
 		ret = ctrl_pdata->check_read_status(ctrl_pdata);
 	} else {
-		pr_err("%s: Read status register returned error\n", __func__);
+		//As ESD test just make the panel status abnormal, so ignore the DSI read error.
+		pr_err("%s: Read status register returned error, but skip it, continue...\n", __func__);
+		ret = 1;
 	}
 
 	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 0);
@@ -2410,6 +2412,31 @@ static int dsi_event_thread(void *data)
 	return 0;
 }
 
+#if 0
+void mdss_dsi_reg_dump(struct mdss_dsi_ctrl_pdata *ctrl, int offset, int cnt)
+{
+	char *base;
+	int i, off, addr;
+	int data[8];
+
+	base = ctrl->ctrl_base;
+	base += offset;
+	off = 0;
+	addr =  (unsigned long int)base & 0x0fffff;
+	while (cnt > 0) {
+		i = 0;
+		while (i < 8) {
+			data[i++] = MIPI_INP(base + off);
+			off += 4;
+		}
+	printk("dsi: 0x%08x: %08x %08x %08x %08x %08x %08x %08x %08x\n",
+	addr, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
+		addr += 32;
+		cnt -= 8;
+	}
+}
+#endif
+
 void mdss_dsi_ack_err_status(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	u32 status;
@@ -2576,6 +2603,8 @@ irqreturn_t mdss_dsi_isr(int irq, void *ptr)
 	if (isr & DSI_INTR_ERROR) {
 		MDSS_XLOG(ctrl->ndx, ctrl->mdp_busy, isr, 0x97);
 		mdss_dsi_error(ctrl);
+		//mdss_dsi_reg_dump(ctrl, 0, 256);
+		//mdss_dsi_reg_dump(ctrl, 256, 256);
 	}
 
 	if (isr & DSI_INTR_VIDEO_DONE) {
