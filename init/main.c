@@ -87,6 +87,9 @@
 #include <asm/smp.h>
 #endif
 
+static char str_board_id[6] = "000";
+static void parse_board_id(void);
+
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -513,6 +516,9 @@ asmlinkage void __init start_kernel(void)
 	page_alloc_init();
 
 	pr_notice("Kernel command line: %s\n", boot_command_line);
+	/*add byd for board ID*/
+	parse_board_id();
+
 	parse_early_param();
 	parse_args("Booting kernel", static_command_line, __start___param,
 		   __stop___param - __start___param,
@@ -915,4 +921,21 @@ static noinline void __init kernel_init_freeable(void)
 
 	/* rootfs is available now, try loading default modules */
 	load_default_modules();
+}
+
+void parse_board_id(void)
+{
+	size_t t_size = strlen(boot_command_line);
+	char *pos = strnstr(boot_command_line, " androidboot.hw_id=",t_size);
+	if (pos != NULL)
+	{
+		pos += sizeof("androidboot.hw_id=");
+		strncpy(str_board_id, pos, 3);
+	}
+	printk(KERN_NOTICE "Board ID = : %s\n", str_board_id);
+	return ;
+}
+char * get_board_id(void)
+{
+	return str_board_id;
 }
