@@ -649,7 +649,7 @@ static int get_sample_interval(struct qpnp_bms_chip *chip,
 						fsm_state, rc);
 		return rc;
 	}
-
+	//printk("%s:reg:0x%x,val:0x%x.\n",__func__,(chip->base+reg),val);
 	*interval = val * 10;
 
 	return 0;
@@ -2473,7 +2473,7 @@ static void qpnp_vm_bms_ext_power_changed(struct power_supply *psy)
 	struct qpnp_bms_chip *chip = container_of(psy, struct qpnp_bms_chip,
 								bms_psy);
 
-	pr_debug("Triggered!\n");
+	printk("Triggered!\n");
 	battery_status_check(chip);
 	battery_insertion_check(chip);
 
@@ -3683,7 +3683,7 @@ static int parse_bms_dt_properties(struct qpnp_bms_chip *chip)
 				chip->dt.cfg_ignore_shutdown_soc,
 				chip->dt.cfg_use_voltage_soc,
 				chip->dt.cfg_low_soc_fifo_length);
-	pr_debug("force-s3-on-suspend=%d report-charger-eoc=%d disable-bms=%d disable-suspend-on-usb=%d aging_compensation=%d\n",
+	printk("force-s3-on-suspend=%d report-charger-eoc=%d disable-bms=%d disable-suspend-on-usb=%d aging_compensation=%d\n",
 			chip->dt.cfg_force_s3_on_suspend,
 			chip->dt.cfg_report_charger_eoc,
 			chip->dt.cfg_disable_bms,
