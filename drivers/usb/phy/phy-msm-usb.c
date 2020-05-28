@@ -3402,7 +3402,7 @@ static void msm_otg_sm_work(struct work_struct *w)
 					break;
 				case USB_FLOATED_CHARGER:
 					msm_otg_notify_charger(motg,
-							IDEV_CHG_MAX);
+							IDEV_CHG_MIN);
 					otg->phy->state =
 						OTG_STATE_B_CHARGER;
 					work = 0;
@@ -3439,6 +3439,9 @@ static void msm_otg_sm_work(struct work_struct *w)
 #ifdef CONFIG_MACH_YULONG
 					msm_otg_set_power(otg->phy, 500);
 #endif
+                    mdelay(300);
+					msm_otg_notify_charger(motg,
+							IDEV_CHG_MIN);
 					msm_otg_start_peripheral(otg, 1);
 					otg->phy->state =
 						OTG_STATE_B_PERIPHERAL;
@@ -4835,7 +4838,7 @@ static int otg_power_set_property_usb(struct power_supply *psy,
 		if (motg->chg_type != USB_INVALID_CHARGER)
 			motg->chg_state = USB_CHG_STATE_DETECTED;
 
-		dev_dbg(motg->phy.dev, "%s: charger type = %s\n", __func__,
+		dev_info(motg->phy.dev, "%s: charger type = %s\n", __func__,
 			chg_to_string(motg->chg_type));
 		msm_otg_dbg_log_event(&motg->phy, "SET CHARGER TYPE ",
 				motg->chg_type, psy->type);
