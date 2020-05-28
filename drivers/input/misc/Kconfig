@@ -1013,5 +1013,23 @@ config SENSORS_YL_PARAMS
 	help
 	  If you say yes here you get support for Yulong/Coolpad's sensor
 	  calibration parameter driver.
+	 
+config SENSORS_MMC3524X
+	tristate "MMC3524xPJ 3-axis magnetic sensor driver"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to enable the MMC3524xPJ magnetic sensor
+	  driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called MMC3524x.
+	  
+config SENSORS_HALL		
+ 	bool "hall device"
+	default n
+	help
+	  Enables support for the hall device which used on smart cover.
+
 endif
 
