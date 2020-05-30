@@ -199,6 +199,52 @@
 			  bias-pull-down;
 		};
 	};
+	
+	mpu6050_int_pin {
+			/* Gyroscope and accelerometer sensor combo */
+			qcom,pins = <&gp 115>;
+			qcom,pin-func = <0>;
+			qcom,num-grp-pins = <1>;
+			label = "mpu6050-irq";
+			mpu6050_default: mpu6050_default {
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+			mpu6050_sleep: mpu6050_sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+		
+	lm3646-en-pin {
+				qcom,pins = <&gp 36>, <&gp 69>;
+				qcom,num-grp-pins = <2>;
+				label = "lm3646_en_pins";
+				qcom,pin-func = <0>;
+
+				en-default {
+					driver-strength = <2>;
+					bias-disable;
+				};
+
+				en-suspend {
+					driver-strength = <2>;
+					bias-pull-down;
+				};
+			};
+			
+		mc3xxx_slave_addr_sel_pin {
+				qcom,pins = <&gp 118>;
+				qcom,num-grp-pins = <1>;
+				label = "mc3xxx_slave_addr_sel_pin";
+				qcom,pin-func = <0>;
+
+			mc3xxx_default:	addr_sel_default {
+					drive-strength = <6>;
+					bias-pull-down;
+					output-low;
+				};
+			};
 		
          
 };
