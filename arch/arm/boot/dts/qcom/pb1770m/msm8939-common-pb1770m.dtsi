@@ -144,6 +144,8 @@
 
 		interrupts = <0 125 0>, <0 221 0>;
 		interrupt-names = "hc_irq", "pwr_irq";
+		
+		status = "ok";
 
 		qcom,bus-width = <4>;
 		qcom,cpu-dma-latency-us = <401>;
@@ -169,7 +171,34 @@
 
 		status = "disabled";
 	};
-};	
+	
+	qcom,ion {
+	     
+		 qcom,ion-heap@21 {
+				reg = <0x15>;
+				qcom,ion-heap-type = "SYSTEM_CONTIG";
+			};
+	};
+	
+	static-rules {
+	    
+		 rule0 {
+		      qcom,dest-bw = <1000000>;
+		};
+		
+		rule1 {
+		      qcom,dest-bw = <1400000>;
+		};
+	};
+		 
+};
+
+&mdss_mdp {
+    qcom,max-bandwidth-low-kbps = <2000000>;
+	qcom,max-bandwidth-high-kbps = <2000000>;
+	qcom,max-bandwidth-per-pipe-kbps = <1500000>;
+	/delete-property/ qcom,max-bw-settings;
+};
 
 &spmi_bus {
 
@@ -190,7 +219,11 @@
 	             };
         };
      };
-	 
+};	 
+
+&soc {
+   
+   qcom,spmi@200f000 {
 	 qcom,leds@c100 {
 			compatible = "qcom,leds-qpnp";
 			reg = <0xc100 0x100>;
@@ -209,6 +242,7 @@
 				qcom,mode-ctrl = <0x60>;
 			};
 		};
+	};
 };
 
 &pm8916_mpps {
