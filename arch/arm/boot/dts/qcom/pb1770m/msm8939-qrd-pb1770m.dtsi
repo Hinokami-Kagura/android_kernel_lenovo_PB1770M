@@ -229,33 +229,51 @@
 
 &i2c_4 {
 	smb358_otg_supply: smb358-charger@6A {
-		compatible = "qcom,smb358-charger";
-		reg = <0x6A>;
-		qcom,irq-gpio = <&msm_gpio 62 2>;
-		vcc-i2c-supply = <&pm8916_l5>;
-		qcom,float-voltage-mv = <4350>;
-		qcom,recharge-mv = <50>;
-		qcom,chg-vadc = <&pm8916_vadc>;
-		qcom,chg-adc_tm = <&pm8916_adc_tm>;
-		qcom,chg-inhibit-disabled;
-		qcom,bms-controlled-charging;
-		qcom,using-pmic-therm;
-		qcom,chg-green = <&msm_gpio 119 2>;
-		qcom,chg-blue = <&msm_gpio 8 2>;
-		regulator-name = "smb358_otg_vreg";
-		qcom,fastchg-current-max-ma = <1800>;
-		qcom,iterm-ma = <100>;
-		qcom,bms-psy-name = "bms";
-		qcom,hot-bat-decidegc = <500>;
-		qcom,cold-bat-decidegc = <0>;
-		qcom,bat-present-decidegc = <200>;
-		qcom,warm-bat-decidegc = <450>;
-		qcom,cool-bat-decidegc = <150>;
-		qcom,warm-bat-ma = <1800>;
-		qcom,cool-bat-ma = <720>;
-		qcom,warm-bat-mv = <4100>;
-		qcom,cool-bat-mv = <4350>;
-	};
+			compatible = "qcom,smb358-charger";
+			reg = <0x6A>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <62 8>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&smb_int_default>;
+
+			qcom,float-voltage-mv = <4360>;
+			qcom,recharge-mv = <50>;
+			//qcom,recharge-disabled;
+			regulator-name = "smb358_otg_vreg";
+			qcom,thermal-mitigation = <1300 700 600 0>;
+			qcom,fastchg-current-max-ma = <1800>;
+
+			qcom,disable-apsd;
+			qcom,bms-psy-name = "bms";
+			/* qcom,iterm-disabled; */
+			qcom,iterm-ma = <100>;
+			qcom,bms-controlled-charging;
+			qcom,chg-inhibit-disabled;
+			qcom,chg-vadc = <&pm8916_vadc>;
+			qcom,chg-adc_tm = <&pm8916_adc_tm>;
+			//qcom,vcc-i2c-supply = <&pm8916_l5>;
+			qcom,irq-gpio = <&msm_gpio 62 2>;
+			
+			/* Chg LED */
+			
+			qcom,chg-green = <&msm_gpio 119 2>;
+		    qcom,chg-blue = <&msm_gpio 8 2>;
+
+			qcom,using-pmic-therm;
+			qcom,hot-bat-decidegc = <500>;
+			qcom,cold-bat-decidegc = <0>;
+			qcom,bat-present-decidegc = <200>;
+			/*
+			 * Below properties are used for enable JEITA
+			 */
+			qcom,warm-bat-decidegc = <450>;
+			qcom,cool-bat-decidegc = <150>;
+			qcom,warm-bat-ma = <1000>;
+			qcom,cool-bat-ma = <720>;
+			qcom,warm-bat-mv = <4100>;
+			qcom,cool-bat-mv = <4350>;
+			status = "ok";
+		};
 };
 
 &sdc2_cd_on {
