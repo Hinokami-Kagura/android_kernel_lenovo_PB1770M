@@ -48,7 +48,7 @@
 			reset-gpios = <&msm_gpio 12 0x00>;
 			irq-gpios = <&msm_gpio 13 0x2800>;
 			irq-flags = <1>;
-			vdd_ana-supply = <&pm8916_l16>;
+			vdd_ana-supply = <&pm8916_l17>;
 			vcc_i2c-supply = <&pm8916_l6>;
 			touchscreen-max-id = <5>;
 			touchscreen-size-x = <1080>;
