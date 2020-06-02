@@ -24,33 +24,50 @@
 	    
 		/delete-node/ nfc-nci@e;
 		
-		goodix@5d {
+		gt9xx-i2c@5d {
 			compatible = "goodix,gt9xx";
 			reg = <0x5d>;
 			interrupt-parent = <&msm_gpio>;
-			interrupts = <13 0x2008>;
-			vdd-supply = <&pm8916_l17>;
+			interrupts = <13 0x2800>;
+			pinctrl-names = "gdix_ts_int_default",
+				"gdix_ts_int_output_low",
+				"gdix_ts_int_output_high",
+				"gdix_ts_int_input",
+				"gdix_ts_rst_default",
+				"gdix_ts_rst_output_low",
+				"gdix_ts_rst_output_high",
+				"gdix_ts_rst_input";
+			pinctrl-0 = <&gdix_ts_int_default>;
+			pinctrl-1 = <&gdix_ts_int_output_low>;
+			pinctrl-2 = <&gdix_ts_int_output_high>;
+			pinctrl-3 = <&gdix_ts_int_input>;
+			pinctrl-4 = <&gdix_ts_rst_default>;
+			pinctrl-5 = <&gdix_ts_rst_output_low>;
+			pinctrl-6 = <&gdix_ts_rst_output_high>;
+			pinctrl-7 = <&gdix_ts_rst_input>;
+			reset-gpios = <&msm_gpio 12 0x00>;
+			irq-gpios = <&msm_gpio 13 0x2800>;
+			irq-flags = <1>;
+			vdd_ana-supply = <&pm8916_l16>;
 			vcc_i2c-supply = <&pm8916_l6>;
-			pinctrl-names = "pmx_ts_active","pmx_ts_suspend";
-			pinctrl-0 = <&ts_int_active &ts_reset_active>;
-			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
-			goodix,name = "gt9xx";
-			goodix,family-id = <0x14>;
-			goodix,reset-gpio = <&msm_gpio 12 0x0>;
-			goodix,irq-gpio = <&msm_gpio 13 0x2008>;
-			goodix,display-coords = <0 0 1080 1920>;
-			goodix,panel-coords = <0 0 1080 2098>;
-			goodix,button-map= <139 102 158>;
-			goodix,no-force-update;
-			goodix,i2c-pull-up;
-			goodix,group-id = <1>;
-			goodix,fw-upgrade-id1 = <0x11>;
-			goodix,fw-upgrade-id2 = <0x11>;
-			goodix,fw-delay-readid-ms = <10>;
-			goodix,fw-delay-era-flsh-ms = <2000>;
-			goodix,fw-auto-cal;
-			goodix,ignore-id-check;
-	    };
+			touchscreen-max-id = <5>;
+			touchscreen-size-x = <1080>;
+			touchscreen-size-y = <2098>;
+			touchscreen-max-w = <512>;
+			touchscreen-max-p = <512>;
+			touchscreen-key-map = <139>, <102>, <158>; /*KEY_BACK=158，KEY_HOMEPAGE=102, KEY_MENU=139*/
+			goodix,slide-wakeup = <0>;
+			goodix,type-a-report = <0>;
+			goodix,driver-send-cfg = <1>;
+			goodix,resume-in-workqueue = <0>;
+			goodix,int-sync = <1>;
+			goodix,swap-x2y = <0>;
+			goodix,esd-protect = <1>;
+			goodix,auto-update = <0>;
+			goodix,auto-update-cfg = <0>;
+			goodix,power-off-sleep = <1>;
+			goodix,pen-suppress-finger = <0>;
+		};
 	};
 	
 	i2c@78b9000 { /* BLSP1 QUP5 */
