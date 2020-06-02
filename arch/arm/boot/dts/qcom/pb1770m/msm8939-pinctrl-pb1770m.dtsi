@@ -245,6 +245,58 @@
 					output-low;
 				};
 			};
+
+        goodix_ts_int {
+		qcom,pins = <&gp 13>;
+		qcom,pin-func = <0>;
+		qcom,num-grp-pins = <1>;
+		label = "goodix_ts_int";
+
+		gdix_ts_int_default: gdix_ts_int_default {
+			drive-strength = <2>;
+			input-enable;
+			bias-disable;
+		};
+
+		gdix_ts_int_output_high: gdix_ts_int_output_high {
+			output-high;
+		};
+
+		gdix_ts_int_output_low: gdix_ts_int_output_low {
+			output-low;
+		};
+
+		gdix_ts_int_input: gdix_ts_int_input {
+			input-enable;
+			bias-disable;
+		};
+	};
+
+	goodix_ts_rst {
+		qcom,pins = <&gp 12>;
+		qcom,pin-func = <0>;
+		qcom,num-grp-pins = <1>;
+		label = "goodix_ts_rst";
+
+		gdix_ts_rst_default: gdix_ts_rst_default {
+			drive-strength = <2>;
+			input-enable;
+			bias-disable;
+		};
+
+		gdix_ts_rst_output_high: gdix_ts_rst_output_high {
+			output-high;
+		};
+
+		gdix_ts_rst_output_low: gdix_ts_rst_output_low {
+			output-low;
+		};
+
+		gdix_ts_rst_input: gdix_ts_rst_input {
+			input-enable;
+			bias-disable;
+		};
+	};
 		
          
 };
