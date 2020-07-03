@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2002,2007-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -235,16 +235,15 @@ static int _load_firmware(struct kgsl_device *device, const char *fwfile,
 	return (*data != NULL) ? 0 : -ENOMEM;
 }
 
-int adreno_ringbuffer_read_pm4_ucode(struct kgsl_device *device)
+void adreno_ringbuffer_read_pm4_ucode(struct kgsl_device *device)
 {
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
-	int ret;
 
 	if (adreno_dev->pm4_fw == NULL) {
 		int len;
 		void *ptr;
 
-		ret = _load_firmware(device,
+		int ret = _load_firmware(device,
 			adreno_dev->gpucore->pm4fw_name, &ptr, &len);
 
 		if (ret)
@@ -255,7 +254,6 @@ int adreno_ringbuffer_read_pm4_ucode(struct kgsl_device *device)
 			KGSL_DRV_ERR(device, "Bad pm4 microcode size: %d\n",
 				len);
 			kfree(ptr);
-			ret = -ENOMEM;
 			goto err;
 		}
 
@@ -264,12 +262,11 @@ int adreno_ringbuffer_read_pm4_ucode(struct kgsl_device *device)
 		adreno_dev->pm4_fw_version = adreno_dev->pm4_fw[1];
 	}
 
-	return 0;
+	return;
 
 err:
-	KGSL_DRV_CRIT(device, "Failed to read pm4 microcode %s\n",
+	KGSL_DRV_FATAL(device, "Failed to read pm4 microcode %s\n",
 		adreno_dev->gpucore->pm4fw_name);
-	return ret;
 }
 
 /**
@@ -295,16 +292,15 @@ static inline int adreno_ringbuffer_load_pm4_ucode(struct kgsl_device *device,
 	return 0;
 }
 
-int adreno_ringbuffer_read_pfp_ucode(struct kgsl_device *device)
+void adreno_ringbuffer_read_pfp_ucode(struct kgsl_device *device)
 {
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
-	int ret;
 
 	if (adreno_dev->pfp_fw == NULL) {
 		int len;
 		void *ptr;
 
-		ret = _load_firmware(device,
+		int ret = _load_firmware(device,
 			adreno_dev->gpucore->pfpfw_name, &ptr, &len);
 		if (ret)
 			goto err;
@@ -314,7 +310,6 @@ int adreno_ringbuffer_read_pfp_ucode(struct kgsl_device *device)
 			KGSL_DRV_ERR(device, "Bad PFP microcode size: %d\n",
 				len);
 			kfree(ptr);
-			ret = -ENOMEM;
 			goto err;
 		}
 
@@ -323,12 +318,11 @@ int adreno_ringbuffer_read_pfp_ucode(struct kgsl_device *device)
 		adreno_dev->pfp_fw_version = adreno_dev->pfp_fw[5];
 	}
 
-	return 0;
+	return;
 
 err:
-	KGSL_DRV_CRIT(device, "Failed to read pfp microcode %s\n",
+	KGSL_DRV_FATAL(device, "Failed to read pfp microcode %s\n",
 		adreno_dev->gpucore->pfpfw_name);
-	return ret;
 }
 
 /**
@@ -377,7 +371,6 @@ static int _ringbuffer_bootstrap_ucode(struct adreno_ringbuffer *rb,
 {
 	unsigned int *cmds, bootstrap_size;
 	int i = 0;
-	int ret;
 	struct kgsl_device *device = rb->device;
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
 	unsigned int pm4_size, pm4_idx, pm4_addr, pfp_size, pfp_idx, pfp_addr;
@@ -472,14 +465,7 @@ static int _ringbuffer_bootstrap_ucode(struct adreno_ringbuffer *rb,
 	}
 
 	/* idle device to validate bootstrap */
-	ret = adreno_spin_idle(device);
-
-	if (ret) {
-		KGSL_DRV_ERR(rb->device,
-		"microcode bootstrap failed to idle\n");
-		kgsl_device_snapshot(device, NULL);
-	}
-	return ret;
+	return adreno_spin_idle(device);
 }
 
 /**
@@ -552,11 +538,7 @@ static int _ringbuffer_start_common(struct adreno_ringbuffer *rb)
 
 	/* idle device to validate ME INIT */
 	status = adreno_spin_idle(device);
-	if (status) {
-		KGSL_DRV_ERR(rb->device,
-		"ringbuffer initialization failed to idle\n");
-		kgsl_device_snapshot(device, NULL);
-	}
+
 	return status;
 }
 
@@ -770,7 +752,7 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 
 	if (drawctxt != NULL && kgsl_context_detached(&drawctxt->base) &&
 		!(flags & KGSL_CMD_FLAGS_INTERNAL_ISSUE))
-		return -ENOENT;
+		return -EINVAL;
 
 	rb->timestamp++;
 
@@ -815,6 +797,10 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 
 	total_sizedwords += (secured_ctxt) ? 26 : 0;
 
+	/* Add two dwords for the CP_INTERRUPT */
+	total_sizedwords +=
+		(drawctxt || (flags & KGSL_CMD_FLAGS_INTERNAL_ISSUE)) ?  2 : 0;
+
 	/* context rollover */
 	if (adreno_is_a3xx(adreno_dev))
 		total_sizedwords += 3;
@@ -844,6 +830,8 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 	ringcmds = adreno_ringbuffer_allocspace(rb, total_sizedwords);
 	if (IS_ERR(ringcmds))
 		return PTR_ERR(ringcmds);
+	if (ringcmds == NULL)
+		return -ENOSPC;
 
 	*ringcmds++ = cp_nop_packet(1);
 	*ringcmds++ = KGSL_CMD_IDENTIFIER;
@@ -947,10 +935,7 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 	 * set and hence the rb timestamp will be used in else statement below.
 	 */
 	*ringcmds++ = cp_type3_packet(CP_EVENT_WRITE, 3);
-	if (drawctxt || (flags & KGSL_CMD_FLAGS_INTERNAL_ISSUE))
-		*ringcmds++ = CACHE_FLUSH_TS | (1 << 31);
-	else
-		*ringcmds++ = CACHE_FLUSH_TS;
+	*ringcmds++ = CACHE_FLUSH_TS;
 
 	if (drawctxt && !(flags & KGSL_CMD_FLAGS_INTERNAL_ISSUE)) {
 		*ringcmds++ = gpuaddr + KGSL_MEMSTORE_OFFSET(context_id,
@@ -964,6 +949,11 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 		*ringcmds++ = gpuaddr + KGSL_MEMSTORE_RB_OFFSET(rb,
 							eoptimestamp);
 		*ringcmds++ = timestamp;
+	}
+
+	if (drawctxt || (flags & KGSL_CMD_FLAGS_INTERNAL_ISSUE)) {
+		*ringcmds++ = cp_type3_packet(CP_INTERRUPT, 1);
+		*ringcmds++ = CP_INTERRUPT_RB;
 	}
 
 	if (adreno_is_a3xx(adreno_dev)) {
@@ -1012,18 +1002,221 @@ adreno_ringbuffer_issuecmds(struct adreno_ringbuffer *rb,
 		sizedwords, 0, NULL);
 }
 
-/**
- * _ringbuffer_verify_ib() - Check if an IB's size is within a permitted limit
- * @device: The kgsl device pointer
- * @ib: Pointer to the IB descriptor
+static bool _parse_ibs(struct kgsl_device_private *dev_priv, uint gpuaddr,
+			   int sizedwords);
+
+static bool
+_handle_type3(struct kgsl_device_private *dev_priv, uint *hostaddr)
+{
+	unsigned int opcode = cp_type3_opcode(*hostaddr);
+	switch (opcode) {
+	case CP_INDIRECT_BUFFER_PFD:
+	case CP_INDIRECT_BUFFER_PFE:
+	case CP_COND_INDIRECT_BUFFER_PFE:
+	case CP_COND_INDIRECT_BUFFER_PFD:
+		return _parse_ibs(dev_priv, hostaddr[1], hostaddr[2]);
+	case CP_NOP:
+	case CP_WAIT_FOR_IDLE:
+	case CP_WAIT_REG_MEM:
+	case CP_WAIT_REG_EQ:
+	case CP_WAT_REG_GTE:
+	case CP_WAIT_UNTIL_READ:
+	case CP_WAIT_IB_PFD_COMPLETE:
+	case CP_REG_RMW:
+	case CP_REG_TO_MEM:
+	case CP_MEM_WRITE:
+	case CP_MEM_WRITE_CNTR:
+	case CP_COND_EXEC:
+	case CP_COND_WRITE:
+	case CP_EVENT_WRITE:
+	case CP_EVENT_WRITE_SHD:
+	case CP_EVENT_WRITE_CFL:
+	case CP_EVENT_WRITE_ZPD:
+	case CP_DRAW_INDX:
+	case CP_DRAW_INDX_2:
+	case CP_DRAW_INDX_BIN:
+	case CP_DRAW_INDX_2_BIN:
+	case CP_VIZ_QUERY:
+	case CP_SET_STATE:
+	case CP_SET_CONSTANT:
+	case CP_IM_LOAD:
+	case CP_IM_LOAD_IMMEDIATE:
+	case CP_LOAD_CONSTANT_CONTEXT:
+	case CP_INVALIDATE_STATE:
+	case CP_SET_SHADER_BASES:
+	case CP_SET_BIN_MASK:
+	case CP_SET_BIN_SELECT:
+	case CP_SET_BIN_BASE_OFFSET:
+	case CP_SET_BIN_DATA:
+	case CP_CONTEXT_UPDATE:
+	case CP_INTERRUPT:
+	case CP_IM_STORE:
+	case CP_LOAD_STATE:
+		break;
+	/* these shouldn't come from userspace */
+	case CP_ME_INIT:
+	case CP_SET_PROTECTED_MODE:
+	default:
+		KGSL_CMD_ERR(dev_priv->device, "bad CP opcode %0x\n", opcode);
+		return false;
+		break;
+	}
+
+	return true;
+}
+
+static bool
+_handle_type0(struct kgsl_device_private *dev_priv, uint *hostaddr)
+{
+	unsigned int reg = type0_pkt_offset(*hostaddr);
+	unsigned int cnt = type0_pkt_size(*hostaddr);
+	if (reg < 0x0192 || (reg + cnt) >= 0x8000) {
+		KGSL_CMD_ERR(dev_priv->device, "bad type0 reg: 0x%0x cnt: %d\n",
+			     reg, cnt);
+		return false;
+	}
+	return true;
+}
+
+/*
+ * Traverse IBs and dump them to test vector. Detect swap by inspecting
+ * register writes, keeping note of the current state, and dump
+ * framebuffer config to test vector
  */
-static inline bool _ringbuffer_verify_ib(struct kgsl_device *device,
+static bool _parse_ibs(struct kgsl_device_private *dev_priv,
+			   uint gpuaddr, int sizedwords)
+{
+	static uint level; /* recursion level */
+	bool ret = false;
+	uint *hostaddr, *hoststart;
+	int dwords_left = sizedwords; /* dwords left in the current command
+					 buffer */
+	struct kgsl_mem_entry *entry;
+
+	entry = kgsl_sharedmem_find_region(dev_priv->process_priv,
+					   gpuaddr, sizedwords * sizeof(uint));
+	if (entry == NULL) {
+		KGSL_CMD_ERR(dev_priv->device,
+			     "no mapping for gpuaddr: 0x%08x\n", gpuaddr);
+		return false;
+	}
+
+	hostaddr = kgsl_gpuaddr_to_vaddr(&entry->memdesc, gpuaddr);
+	if (hostaddr == NULL) {
+		KGSL_CMD_ERR(dev_priv->device,
+			     "no mapping for gpuaddr: 0x%08x\n", gpuaddr);
+		return false;
+	}
+
+	hoststart = hostaddr;
+
+	level++;
+
+	KGSL_CMD_INFO(dev_priv->device, "ib: gpuaddr:0x%08x, wc:%d, hptr:%p\n",
+		gpuaddr, sizedwords, hostaddr);
+
+	mb();
+	while (dwords_left > 0) {
+		bool cur_ret = true;
+		int count = 0; /* dword count including packet header */
+
+		switch (*hostaddr >> 30) {
+		case 0x0: /* type-0 */
+			count = (*hostaddr >> 16)+2;
+			cur_ret = _handle_type0(dev_priv, hostaddr);
+			break;
+		case 0x1: /* type-1 */
+			count = 2;
+			break;
+		case 0x3: /* type-3 */
+			count = ((*hostaddr >> 16) & 0x3fff) + 2;
+			cur_ret = _handle_type3(dev_priv, hostaddr);
+			break;
+		default:
+			KGSL_CMD_ERR(dev_priv->device, "unexpected type: "
+				"type:%d, word:0x%08x @ 0x%p, gpu:0x%08x\n",
+				*hostaddr >> 30, *hostaddr, hostaddr,
+				gpuaddr+4*(sizedwords-dwords_left));
+			cur_ret = false;
+			count = dwords_left;
+			break;
+		}
+
+		if (!cur_ret) {
+			KGSL_CMD_ERR(dev_priv->device,
+				"bad sub-type: #:%d/%d, v:0x%08x"
+				" @ 0x%p[gb:0x%08x], level:%d\n",
+				sizedwords-dwords_left, sizedwords, *hostaddr,
+				hostaddr, gpuaddr+4*(sizedwords-dwords_left),
+				level);
+
+			if (ADRENO_DEVICE(dev_priv->device)->ib_check_level
+				>= 2)
+				print_hex_dump(KERN_ERR,
+					level == 1 ? "IB1:" : "IB2:",
+					DUMP_PREFIX_OFFSET, 32, 4, hoststart,
+					sizedwords*4, 0);
+			goto done;
+		}
+
+		/* jump to next packet */
+		dwords_left -= count;
+		hostaddr += count;
+		if (dwords_left < 0) {
+			KGSL_CMD_ERR(dev_priv->device,
+				"bad count: c:%d, #:%d/%d, "
+				"v:0x%08x @ 0x%p[gb:0x%08x], level:%d\n",
+				count, sizedwords-(dwords_left+count),
+				sizedwords, *(hostaddr-count), hostaddr-count,
+				gpuaddr+4*(sizedwords-(dwords_left+count)),
+				level);
+			if (ADRENO_DEVICE(dev_priv->device)->ib_check_level
+				>= 2)
+				print_hex_dump(KERN_ERR,
+					level == 1 ? "IB1:" : "IB2:",
+					DUMP_PREFIX_OFFSET, 32, 4, hoststart,
+					sizedwords*4, 0);
+			goto done;
+		}
+	}
+
+	ret = true;
+done:
+	if (!ret)
+		KGSL_DRV_ERR(dev_priv->device,
+			"parsing failed: gpuaddr:0x%08x, "
+			"host:0x%p, wc:%d\n", gpuaddr, hoststart, sizedwords);
+
+	level--;
+
+	return ret;
+}
+
+/**
+ * _ringbuffer_verify_ib() - parse an IB and verify that it is correct
+ * @dev_priv: Pointer to the process struct
+ * @ibdesc: Pointer to the IB descriptor
+ *
+ * This function only gets called if debugging is enabled  - it walks the IB and
+ * does additional level parsing and verification above and beyond what KGSL
+ * core does
+ */
+static inline bool _ringbuffer_verify_ib(struct kgsl_device_private *dev_priv,
 		struct kgsl_memobj_node *ib)
 {
-	/* Check that the size of the IB is under the allowable limit */
+	struct kgsl_device *device = dev_priv->device;
+	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
+
+	/* Check that the size of the IBs is under the allowable limit */
 	if (ib->sizedwords == 0 || ib->sizedwords > 0xFFFFF) {
 		KGSL_DRV_ERR(device, "Invalid IB size 0x%zX\n",
 				ib->sizedwords);
+		return false;
+	}
+
+	if (unlikely(adreno_dev->ib_check_level >= 1) &&
+		!_parse_ibs(dev_priv, ib->gpuaddr, ib->sizedwords)) {
+		KGSL_DRV_ERR(device, "Could not verify the IBs\n");
 		return false;
 	}
 
@@ -1047,7 +1240,7 @@ adreno_ringbuffer_issueibcmds(struct kgsl_device_private *dev_priv,
 
 	/* Verify the IBs before they get queued */
 	list_for_each_entry(ib, &cmdbatch->cmdlist, node)
-		if (!_ringbuffer_verify_ib(device, ib))
+		if (!_ringbuffer_verify_ib(dev_priv, ib))
 			return -EINVAL;
 
 	/* wait for the suspend gate */
@@ -1315,23 +1508,21 @@ int adreno_ringbuffer_submitcmd(struct adreno_device *adreno_dev,
 					&link[0], (cmds - link),
 					cmdbatch->timestamp, time);
 
-	if (!ret) {
-		/* Put the timevalues in the profiling buffer */
-		if (cmdbatch_user_profiling) {
-			profile_buffer->wall_clock_s = time->utime.tv_sec;
-			profile_buffer->wall_clock_ns = time->utime.tv_nsec;
-			profile_buffer->gpu_ticks_queued = time->ticks;
-		}
+	/* Put the timevalues in the profiling buffer */
+	if (cmdbatch_user_profiling) {
+		profile_buffer->wall_clock_s = time->utime.tv_sec;
+		profile_buffer->wall_clock_ns = time->utime.tv_nsec;
+		profile_buffer->gpu_ticks_queued = time->ticks;
 	}
+
+	/* Corresponding unmap to the memdesc map of profile_buffer */
+	if (entry)
+		kgsl_memdesc_unmap(&entry->memdesc);
 
 	kgsl_cffdump_regpoll(device,
 		adreno_getreg(adreno_dev, ADRENO_REG_RBBM_STATUS) << 2,
 		0x00000000, 0x80000000);
 done:
-	/* Corresponding unmap to the memdesc map of profile_buffer */
-	if (entry)
-		kgsl_memdesc_unmap(&entry->memdesc);
-
 	trace_kgsl_issueibcmds(device, context->id, cmdbatch,
 			numibs, cmdbatch->timestamp,
 			cmdbatch->flags, ret, drawctxt->type);
