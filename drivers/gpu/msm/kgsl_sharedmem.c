@@ -537,16 +537,9 @@ int kgsl_cache_range_op(struct kgsl_memdesc *memdesc, size_t offset,
 	void *addr = (memdesc->hostptr) ?
 		memdesc->hostptr : (void *) memdesc->useraddr;
 
-	if (size == 0 || size > UINT_MAX)
+	/* Make sure that size is non-zero */
+	if (!size)
 		return -EINVAL;
-
-	/* Make sure that the offset + size does not overflow */
-	if ((offset + size < offset) || (offset + size < size))
-		return -ERANGE;
-
-	/* Make sure the offset + size do not overflow the address */
-	if ((addr + offset + size) < addr)
-		return -ERANGE;
 
 	/* Check that offset+length does not exceed memdesc->size */
 	if ((offset + size) > memdesc->size)
