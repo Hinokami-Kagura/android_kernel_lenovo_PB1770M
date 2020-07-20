@@ -593,7 +593,8 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	pr_debug("PMIC input: code=%d, sts=0x%hhx\n",
 					cfg->key_code, pon_rt_sts);
 	key_status = pon_rt_sts & pon_rt_bit;
-
+	if(cfg->key_code==116)
+	pr_err("power key press %s\n",key_status>0?"Down":"Up");
 	/* simulate press event in case release event occured
 	 * without a press event
 	 */

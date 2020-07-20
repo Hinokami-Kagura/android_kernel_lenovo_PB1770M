@@ -38,9 +38,9 @@
 				qcom,pon-type = <0>;
 				qcom,support-reset = <1>;
 				qcom,pull-up = <1>;
-				qcom,s1-timer = <10256>;
+				qcom,s1-timer = <6720>;
 				qcom,s2-timer = <2000>;
-				qcom,s2-type = <1>;
+				qcom,s2-type = <2>;
 				linux,code = <116>;
 			};
 
@@ -117,7 +117,8 @@
                         #address-cells = <1>;
                         #size-cells = <1>;
                         qcom,qpnp-rtc-write = <0>;
-                        qcom,qpnp-rtc-alarm-pwrup = <0>;
+                        #qcom,qpnp-rtc-alarm-pwrup = <0>;
+                        qcom,qpnp-rtc-alarm-pwrup = <1>;
 
                         qcom,pm8916_rtc_rw@6000 {
                                 reg = <0x6000 0x100>;
@@ -282,6 +283,7 @@
 			qcom,s3-ocv-tolerence-uv = <1200>;
 			qcom,s2-fifo-length = <5>;
 			qcom,low-soc-fifo-length = <2>;
+			qcom,resume-soc = <99>;
 			qcom,bms-vadc = <&pm8916_vadc>;
 			qcom,bms-adc_tm = <&pm8916_adc_tm>;
 			qcom,pmic-revid = <&pm8916_revid>;
@@ -320,6 +322,11 @@
 			compatible = "qcom,leds-qpnp";
 			reg = <0xa100 0x100>;
 			label = "mpp";
+		};
+		qcom,leds@c100 {
+			compatible = "qcom,leds-qpnp";
+			reg = <0xc100 0x100>;
+			label = "gpio";
 		};
 	};
 
@@ -588,6 +595,10 @@
 			qcom,cdc-vdd-pa-voltage = <1800000 1800000>;
 			qcom,cdc-vdd-pa-current = <5000>;
 
+			mbhc-vdd-vlogic-supply = <&pm8916_l16>;
+			qcom,mbhc-vdd-vlogic-voltage = <2800000 2800000>;
+			qcom,mbhc-vdd-vlogic-current = <55000>;
+
 			cdc-vdd-mic-bias-supply = <&pm8916_l13>;
 			qcom,cdc-vdd-mic-bias-voltage = <3075000 3075000>;
 			qcom,cdc-vdd-mic-bias-current = <25000>;
@@ -597,7 +608,8 @@
 			qcom,cdc-static-supplies = "cdc-vdda-h",
 						   "cdc-vdd-px",
 						   "cdc-vdd-pa",
-						   "cdc-vdda-cp";
+						   "cdc-vdda-cp",
+						   "mbhc-vdd-vlogic";
 
 			qcom,cdc-on-demand-supplies = "cdc-vdd-mic-bias";
 		};

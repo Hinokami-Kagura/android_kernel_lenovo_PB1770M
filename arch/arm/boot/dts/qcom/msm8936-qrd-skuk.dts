@@ -20,20 +20,28 @@
 };
 
 &i2c_4 {
-	smb1360_otg_supply: smb1360-chg-fg@14 {
-		compatible = "qcom,smb1360-chg-fg";
-		reg = <0x14>;
-		interrupt-parent = <&msm_gpio>;
-		interrupts = <62 2>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&smb_int_default>;
-		qcom,stat-pulsed-irq;
-		qcom,chg-inhibit-disabled;
+	smb358_otg_supply: smb358-charger@57 {
+		compatible = "qcom,smb358-charger";
+		reg = <0x57>;
+		qcom,irq-gpio = <&msm_gpio 62 2>;
+		vcc-i2c-supply = <&pm8916_l5>;
 		qcom,float-voltage-mv = <4350>;
-		qcom,iterm-ma = <100>;
-		qcom,recharge-thresh-mv = <100>;
-		qcom,thermal-mitigation = <1500 700 600 0>;
-		regulator-name = "smb1360_otg_vreg";
+		qcom,disable-apsd;
+		qcom,chg-vadc = <&pm8916_vadc>;
+		qcom,chg-inhibit-disabled;
+		qcom,bms-controlled-charging;
+		regulator-name = "smb358_otg_vreg";
+		qcom,fastchg-current-max-ma = <1500>;
+		qcom,bms-psy-name = "bms";
+		qcom,hot-bat-decidegc = <500>;
+		qcom,cold-bat-decidegc = <0>;
+		qcom,bat-present-decidegc = <200>;
+		qcom,warm-bat-decidegc = <450>;
+		qcom,cool-bat-decidegc = <100>;
+		qcom,warm-bat-ma = <350>;
+		qcom,cool-bat-ma = <350>;
+		qcom,warm-bat-mv = <4200>;
+		qcom,cool-bat-mv = <4200>;
 	};
 };
 

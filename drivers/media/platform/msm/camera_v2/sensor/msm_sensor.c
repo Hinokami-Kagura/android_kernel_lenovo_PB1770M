@@ -21,6 +21,9 @@
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
+extern int ov13850_update_otp(struct msm_sensor_ctrl_t *s_ctrl);
+extern int ov5693_update_otp(struct msm_sensor_ctrl_t *s_ctrl);
+
 static struct v4l2_file_operations msm_sensor_v4l2_subdev_fops;
 static void msm_sensor_adjust_mclk(struct msm_camera_power_ctrl_t *ctrl)
 {
@@ -920,6 +923,18 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 			stop_setting->size = 0;
 			rc = -EFAULT;
 			break;
+		}
+		break;
+	}
+	case CFG_ODM_UPDATE_OTP: {
+		CDBG("%s:%d CFG_ODM_UPDATE_OTP sensor name = %s\n", __func__, __LINE__,
+			s_ctrl->sensordata->sensor_name);
+		if (!strcmp(s_ctrl->sensordata->sensor_name, "ov13850")) {
+			ov13850_update_otp(s_ctrl);
+		} else if (!strcmp(s_ctrl->sensordata->sensor_name, "ov5693")) {
+			ov5693_update_otp(s_ctrl);
+		} else {
+			pr_err("%s:%d unknow sensor! \n",  __func__, __LINE__);
 		}
 		break;
 	}

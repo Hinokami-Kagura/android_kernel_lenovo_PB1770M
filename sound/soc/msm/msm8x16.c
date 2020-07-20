@@ -202,6 +202,8 @@ struct cdc_pdm_pinctrl_info {
 	struct pinctrl_state *cdc_lines_act;
 	struct pinctrl_state *cross_conn_det_sus;
 	struct pinctrl_state *cross_conn_det_act;
+	struct pinctrl_state *cdc_lines_dmic_act;
+	struct pinctrl_state *cdc_lines_dmic_sus;
 };
 
 struct ext_cdc_tlmm_pinctrl_info {
@@ -777,7 +779,6 @@ static int msm8x16_mclk_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
 	struct msm8916_asoc_mach_data *pdata = NULL;
-	int ret = 0;
 
 	pdata = snd_soc_card_get_drvdata(w->codec->card);
 	pr_debug("%s: event = %d\n", __func__, event);
@@ -791,11 +792,6 @@ static int msm8x16_mclk_event(struct snd_soc_dapm_widget *w,
 				/* disable the codec mclk config*/
 				msm8x16_wcd_mclk_enable(w->codec, 0, true);
 				msm8x16_enable_codec_ext_clk(w->codec, 0, true);
-				ret = pinctrl_select_state(pinctrl_info.pinctrl,
-						pinctrl_info.cdc_lines_sus);
-				if (ret < 0)
-					pr_err("%s: error during pinctrl state select\n",
-							__func__);
 			}
 		}
 		break;
@@ -1067,7 +1063,7 @@ static void *def_msm8x16_wcd_mbhc_cal(void)
 	}
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(msm8x16_wcd_cal)->X) = (Y))
-	S(v_hs_max, 1500);
+	S(v_hs_max, 1600);
 #undef S
 #define S(X, Y) ((WCD_MBHC_CAL_BTN_DET_PTR(msm8x16_wcd_cal)->X) = (Y))
 	S(num_btn, WCD_MBHC_DEF_BUTTONS);
@@ -1084,17 +1080,22 @@ static void *def_msm8x16_wcd_mbhc_cal(void)
 	 * one for current source and another for Micbias.
 	 * all btn_low corresponds to threshold for current source
 	 * all bt_high corresponds to threshold for Micbias
-	 */
-	btn_low[0] = 25;
-	btn_high[0] = 25;
-	btn_low[1] = 50;
-	btn_high[1] = 50;
-	btn_low[2] = 75;
-	btn_high[2] = 75;
-	btn_low[3] = 112;
-	btn_high[3] = 112;
-	btn_low[4] = 137;
-	btn_high[4] = 137;
+	 * Below thresholds are based on following resistances
+	 * 0-70	== Button 0
+	 * 110-180 == Button 1
+	 * 210-290 == Button 2
+	 * 360-680 == Button 3
+	*/
+	btn_low[0] = 75;
+	btn_high[0] = 75;
+	btn_low[1] = 150;
+	btn_high[1] = 150;
+	btn_low[2] = 237;
+	btn_high[2] = 237;
+	btn_low[3] = 450;
+	btn_high[3] = 450;
+	btn_low[4] = 500;
+	btn_high[4] = 500;
 
 	return msm8x16_wcd_cal;
 }
@@ -1952,6 +1953,8 @@ static int msm8x16_setup_hs_jack(struct platform_device *pdev,
 
 int get_cdc_gpio_lines(struct pinctrl *pinctrl, int ext_pa)
 {
+	int ret = 0;
+
 	pr_debug("%s\n", __func__);
 	switch (ext_pa & SEC_MI2S_ID) {
 	case SEC_MI2S_ID:
@@ -1986,6 +1989,13 @@ int get_cdc_gpio_lines(struct pinctrl *pinctrl, int ext_pa)
 			return -EINVAL;
 		}
 		pr_debug("%s: no external PA connected %d\n", __func__, ext_pa);
+		ret = pinctrl_select_state(pinctrl_info.pinctrl,
+					pinctrl_info.cdc_lines_act);
+		if (ret < 0) {
+			pr_err("%s: failed to active cdc gpio's\n",
+							__func__);
+			return -EINVAL;
+		}
 		break;
 	}
 	return 0;

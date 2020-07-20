@@ -586,7 +586,6 @@ static void
 hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
 {
 	ktime_t expires_next = __hrtimer_get_next_event(cpu_base);
-
 	if (skip_equal && expires_next.tv64 == cpu_base->expires_next.tv64)
 		return;
 

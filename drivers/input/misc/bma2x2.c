@@ -32,6 +32,12 @@
 #include <linux/regulator/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/sensors.h>
+#include <linux/wakelock.h>
+
+#if defined(CONFIG_FB)
+#include <linux/notifier.h>
+#include <linux/fb.h>
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
@@ -50,6 +56,9 @@
 #endif
 
 #include "bstclass.h"
+
+#define BMA2X2_ENABLE_INT1
+#define BMA2X2_WAKEUP_BY_2TAP
 
 #define ACC_NAME  "ACC"
 /*#define CONFIG_BMA_ENABLE_NEWDATA_INT 1*/
@@ -1473,6 +1482,11 @@ struct bma2x2_data {
 	bool power_enabled;
 	unsigned char bandwidth;
 	unsigned char range;
+
+#if defined(CONFIG_FB)
+	struct notifier_block fb_notif;
+#endif
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
@@ -1491,6 +1505,12 @@ struct bma2x2_data {
 	atomic_t en_sig_motion;
 #endif
 
+#ifdef BMA2X2_WAKEUP_BY_2TAP
+	atomic_t double_tap_flag;
+	atomic_t en_double_tap;
+	struct wake_lock bma_wake_lock;
+#endif
+
 #ifdef CONFIG_DOUBLE_TAP
 	struct class *g_sensor_class_doubletap;
 	struct device *g_sensor_dev_doubletap;
@@ -1501,6 +1521,13 @@ struct bma2x2_data {
 	int tap_time_period;
 #endif
 };
+
+#if defined(CONFIG_FB)
+static int fb_notifier_callback(struct notifier_block *self,
+				 unsigned long event, void *data);
+static int bma2x2_suspend(struct i2c_client *client);
+static int bma2x2_resume(struct i2c_client *client);
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void bma2x2_early_suspend(struct early_suspend *h);
@@ -1759,6 +1786,24 @@ static int bma2x2_set_newdata(struct i2c_client *client,
 }
 #endif /* CONFIG_BMA_ENABLE_NEWDATA_INT */
 
+#ifdef BMA2X2_WAKEUP_BY_2TAP
+ static int bma2x2_set_int1_pad_sel_2tap(struct i2c_client *client,int en)
+ {
+    int comres = 0;
+    unsigned char data=0;
+    unsigned char state;
+    state = 0x01;
+    
+	if(en)
+    data = BMA2X2_SET_BITSLICE(data, BMA2X2_EN_INT1_PAD_DB_TAP,
+   	             state);
+    dev_dbg(&client->dev,"%s,data:0x%x\n",__func__,data);
+    comres = bma2x2_smbus_write_byte(client,
+                BMA2X2_EN_INT1_PAD_DB_TAP__REG, &data);
+
+    return comres;
+}
+#else
 #ifdef BMA2X2_ENABLE_INT1
 static int bma2x2_set_int1_pad_sel(struct i2c_client *client, unsigned char
 		int1sel)
@@ -1842,6 +1887,7 @@ static int bma2x2_set_int1_pad_sel(struct i2c_client *client, unsigned char
 	return comres;
 }
 #endif /* BMA2X2_ENABLE_INT1 */
+#endif
 
 #ifdef BMA2X2_ENABLE_INT2
 static int bma2x2_set_int2_pad_sel(struct i2c_client *client, unsigned char
@@ -1977,7 +2023,7 @@ static int bma2x2_set_Int_Enable(struct i2c_client *client, unsigned char
 
 	comres = bma2x2_smbus_read_byte(client, BMA2X2_INT_ENABLE1_REG, &data1);
 	comres = bma2x2_smbus_read_byte(client, BMA2X2_INT_ENABLE2_REG, &data2);
-
+	
 	value = value & 1;
 	switch (InterruptType) {
 	case 0:
@@ -2056,7 +2102,7 @@ static int bma2x2_set_Int_Enable(struct i2c_client *client, unsigned char
 			&data1);
 	comres = bma2x2_smbus_write_byte(client, BMA2X2_INT_ENABLE2_REG,
 			&data2);
-
+	dev_dbg(&client->dev,"%s, data1:0x%x, data2:0x%x\n",__func__,data1,data2);
 	return comres;
 }
 
@@ -2476,7 +2522,7 @@ static int bma2x2_set_tap_duration(struct i2c_client *client, unsigned char
 	comres = bma2x2_smbus_read_byte(client, BMA2X2_TAP_DUR__REG, &data);
 	data = BMA2X2_SET_BITSLICE(data, BMA2X2_TAP_DUR, duration);
 	comres = bma2x2_smbus_write_byte(client, BMA2X2_TAP_DUR__REG, &data);
-
+	dev_dbg(&client->dev,"%s,duration:0x%x\n",__func__,data);
 	return comres;
 }
 
@@ -2503,6 +2549,7 @@ static int bma2x2_set_tap_shock(struct i2c_client *client, unsigned char setval)
 	data = BMA2X2_SET_BITSLICE(data, BMA2X2_TAP_SHOCK_DURN, setval);
 	comres = bma2x2_smbus_write_byte(client, BMA2X2_TAP_SHOCK_DURN__REG,
 			&data);
+	dev_dbg(&client->dev,"%s, shock:0x%x\n",__func__,data);
 
 	return comres;
 }
@@ -2514,7 +2561,9 @@ static int bma2x2_get_tap_shock(struct i2c_client *client, unsigned char
 	unsigned char data;
 
 	comres = bma2x2_smbus_read_byte(client, BMA2X2_TAP_PARAM_REG, &data);
+	
 	data = BMA2X2_GET_BITSLICE(data, BMA2X2_TAP_SHOCK_DURN);
+	dev_dbg(&client->dev,"%s, get_shock1:0x%x\n",__func__,data);
 	*status = data;
 
 	return comres;
@@ -2531,7 +2580,7 @@ static int bma2x2_set_tap_quiet(struct i2c_client *client, unsigned char
 	data = BMA2X2_SET_BITSLICE(data, BMA2X2_TAP_QUIET_DURN, duration);
 	comres = bma2x2_smbus_write_byte(client, BMA2X2_TAP_QUIET_DURN__REG,
 			&data);
-
+	dev_dbg(&client->dev,"%s, quiet:0x%x\n",__func__,data);
 	return comres;
 }
 
@@ -5052,6 +5101,36 @@ static ssize_t bma2x2_place_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", place);
 }
 
+//pjn add for double tap
+static ssize_t bma2x2_double_tap_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+
+	struct i2c_client *client = to_i2c_client(dev);
+	struct bma2x2_data *bma2x2 = i2c_get_clientdata(client);
+	
+	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&bma2x2->double_tap_flag));
+}
+
+
+static ssize_t bma2x2_double_tap_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	unsigned long data;
+	int error;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct bma2x2_data *bma2x2 = i2c_get_clientdata(client);
+
+	error = kstrtoul(buf, 10, &data);
+	if (error)
+		return error;
+	
+	atomic_set(&bma2x2->double_tap_flag, (unsigned int) data);
+
+	return count;
+}
+//end
 
 static ssize_t bma2x2_delay_store(struct device *dev,
 		struct device_attribute *attr,
@@ -5092,11 +5171,12 @@ static void bma2x2_set_enable(struct device *dev, int enable)
 	mutex_lock(&bma2x2->enable_mutex);
 	if (enable) {
 		if (pre_enable == 0) {
+			printk("%s gsensor enable\n",__func__);
 			if (bma2x2_power_ctl(bma2x2, true)) {
 				dev_err(dev, "power failed\n");
 				goto mutex_exit;
 			}
-			if (bma2x2_open_init(client, bma2x2) < 0) {
+			if (bma2x2_open_init(bma2x2->bma2x2_client, bma2x2) < 0) {
 				dev_err(dev, "set init failed\n");
 				goto mutex_exit;
 			}
@@ -5111,7 +5191,8 @@ static void bma2x2_set_enable(struct device *dev, int enable)
 
 	} else {
 		if (pre_enable == 1) {
-			if (bma2x2_store_state(client, bma2x2) < 0) {
+			printk("%s gsensor disable\n",__func__);
+			if (bma2x2_store_state(bma2x2->bma2x2_client, bma2x2) < 0) {
 				dev_err(dev, "set state failed\n");
 				goto mutex_exit;
 			}
@@ -5142,9 +5223,12 @@ static ssize_t bma2x2_enable_store(struct device *dev,
 	error = kstrtoul(buf, 10, &data);
 	if (error)
 		return error;
-	if ((data == 0) || (data == 1))
+	if (data == 1){
+		printk("%s enable=%lu \n",__func__,data);
 		bma2x2_set_enable(dev, data);
-
+	}else{
+		printk("%s enable=%lu no operation\n",__func__,data);
+	}
 	return count;
 }
 
@@ -5153,7 +5237,7 @@ static int bma2x2_cdev_enable(struct sensors_classdev *sensors_cdev,
 {
 	struct bma2x2_data *data = container_of(sensors_cdev,
 					struct bma2x2_data, cdev);
-
+	printk("%s enable=%d \n",__func__,enable);
 	bma2x2_set_enable(&data->bma2x2_client->dev, enable);
 	return 0;
 }
@@ -6376,6 +6460,8 @@ static DEVICE_ATTR(temperature, S_IRUSR|S_IRGRP,
 		bma2x2_temperature_show, NULL);
 static DEVICE_ATTR(place, S_IRUSR|S_IRGRP,
 		bma2x2_place_show, NULL);
+static DEVICE_ATTR(double_tap, S_IRUSR|S_IRGRP|S_IWUSR|S_IWGRP,
+		bma2x2_double_tap_show, bma2x2_double_tap_store);
 #ifdef CONFIG_SIG_MOTION
 static DEVICE_ATTR(en_sig_motion, S_IRUSR|S_IRGRP|S_IWUSR,
 		bma2x2_en_sig_motion_show, bma2x2_en_sig_motion_store);
@@ -6435,6 +6521,7 @@ static struct attribute *bma2x2_attributes[] = {
 	&dev_attr_softreset.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_place.attr,
+	&dev_attr_double_tap.attr,
 #ifdef CONFIG_SIG_MOTION
 	&dev_attr_en_sig_motion.attr,
 #endif
@@ -6697,6 +6784,15 @@ static void bma2x2_irq_work_func(struct work_struct *work)
 	case 0x10:
 		ISR_INFO(&bma2x2->bma2x2_client->dev,
 			"double tap interrupt happened\n");
+#ifdef BMA2X2_WAKEUP_BY_2TAP
+	       if(atomic_read(&bma2x2->en_double_tap)==1)
+              {
+        	    input_report_key(bma2x2->input, KEY_POWER, 1);
+        	    input_sync(bma2x2->input);
+        	    input_report_key(bma2x2->input, KEY_POWER, 0);
+        	    input_sync(bma2x2->input);    					
+              }
+#endif
 		input_report_rel(bma2x2->dev_interrupt,
 			DOUBLE_TAP_INTERRUPT,
 			DOUBLE_TAP_INTERRUPT_HAPPENED);
@@ -6779,6 +6875,9 @@ static irqreturn_t bma2x2_irq_handler(int irq, void *handle)
 		return IRQ_HANDLED;
 	if (data->bma2x2_client == NULL)
 		return IRQ_HANDLED;
+
+	dev_dbg(&data->bma2x2_client->dev,"%s\n",__func__);	
+	wake_lock_timeout(&data->bma_wake_lock, HZ / 2);
 
 	schedule_work(&data->irq_work);
 
@@ -7088,7 +7187,7 @@ static int bma2x2_probe(struct i2c_client *client,
 		goto disable_power_exit;
 	}
 #if defined(BMA2X2_ENABLE_INT1) || defined(BMA2X2_ENABLE_INT2)
-
+/*
 	pdata = client->dev.platform_data;
 	if (pdata) {
 		if (pdata->irq_gpio_cfg && (pdata->irq_gpio_cfg() < 0)) {
@@ -7097,8 +7196,11 @@ static int bma2x2_probe(struct i2c_client *client,
 				client->irq);
 		}
 	}
-
+*/
 #ifdef BMA2X2_ENABLE_INT1
+#ifdef BMA2X2_WAKEUP_BY_2TAP
+	bma2x2_set_int1_pad_sel_2tap(client,1);
+#else
 	/* maps interrupt to INT1 pin */
 	bma2x2_set_int1_pad_sel(client, PAD_LOWG);
 	bma2x2_set_int1_pad_sel(client, PAD_HIGHG);
@@ -7111,6 +7213,7 @@ static int bma2x2_probe(struct i2c_client *client,
 #ifdef CONFIG_BMA_ENABLE_NEWDATA_INT
 	bma2x2_set_newdata(client, BMA2X2_INT1_NDATA, 1);
 	bma2x2_set_newdata(client, BMA2X2_INT2_NDATA, 0);
+#endif
 #endif
 #endif
 
@@ -7138,14 +7241,42 @@ static int bma2x2_probe(struct i2c_client *client,
 	/* bma2x2_set_Int_Enable(client, 10, 1);	*/
 	/* bma2x2_set_Int_Enable(client, 11, 1); */
 
+#ifdef BMA2X2_WAKEUP_BY_2TAP
+	// enable double tap interrupt
+	bma2x2_set_Int_Enable(client, 9, 1);
+#endif
+
 #ifdef CONFIG_BMA_ENABLE_NEWDATA_INT
 	/* enable new data interrupt */
 	bma2x2_set_Int_Enable(client, 4, 1);
 #endif
 
-	data->IRQ = client->irq;
+	//data->IRQ = client->irq;
+	//pjn add double tap interrupt gpio config
+        if (gpio_is_valid(data->pdata->gpio_int1)) {
+                err = gpio_request(data->pdata->gpio_int1, "bma2x2_irq_gpio");
+                if (err) {
+                        printk( "%s irq gpio request failed\n",__func__);
+		          err = -EINTR;
+		          goto disable_power_exit;
+                }
+
+                err = gpio_direction_input(data->pdata->gpio_int1);
+                if (err) {
+                        printk("%s set_direction for irq gpio failed\n",__func__);
+                        err = -EIO;
+			  goto disable_power_exit;
+                }
+        }
+	data->IRQ = gpio_to_irq(data->pdata->gpio_int1);
+	//end
 	err = request_irq(data->IRQ, bma2x2_irq_handler, IRQF_TRIGGER_RISING,
 			"bma2x2", data);
+#ifdef BMA2X2_WAKEUP_BY_2TAP
+	enable_irq_wake(data->IRQ);
+	wake_lock_init(&data->bma_wake_lock, WAKE_LOCK_SUSPEND, "bma");
+#endif
+
 #ifdef CONFIG_SIG_MOTION
 	enable_irq_wake(data->IRQ);
 #endif
@@ -7184,6 +7315,9 @@ static int bma2x2_probe(struct i2c_client *client,
 	input_set_abs_params(dev, ABS_X, ABSMIN, ABSMAX, 0, 0);
 	input_set_abs_params(dev, ABS_Y, ABSMIN, ABSMAX, 0, 0);
 	input_set_abs_params(dev, ABS_Z, ABSMIN, ABSMAX, 0, 0);
+#ifdef BMA2X2_WAKEUP_BY_2TAP	
+       input_set_capability(dev, EV_KEY, KEY_POWER);	
+#endif	
 
 	input_set_drvdata(dev, data);
 	err = input_register_device(dev);
@@ -7322,6 +7456,15 @@ static int bma2x2_probe(struct i2c_client *client,
 		goto bst_free_exit;
 	}
 
+#if defined(CONFIG_FB)
+	data->fb_notif.notifier_call = fb_notifier_callback;
+
+	err = fb_register_client(&data->fb_notif);
+
+	if (err)
+		dev_err(&client->dev, "Unable to register fb_notifier: %d\n",err);
+#endif
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	data->early_suspend.suspend = bma2x2_early_suspend;
@@ -7344,6 +7487,14 @@ static int bma2x2_probe(struct i2c_client *client,
 			(unsigned long)data);
 #endif
 
+#ifdef BMA2X2_WAKEUP_BY_2TAP
+       atomic_set(&data->en_double_tap, 0);
+       bma2x2_set_tap_shock(client,1);
+       bma2x2_set_tap_duration(client,3);
+	bma2x2_set_tap_quiet(client,1);
+	bma2x2_set_tap_threshold(client,2);
+#endif	
+
 	data->cdev = sensors_cdev;
 	data->cdev.min_delay = POLL_INTERVAL_MIN_MS * 1000;
 	data->cdev.delay_msec = pdata->poll_interval;
@@ -7359,7 +7510,7 @@ static int bma2x2_probe(struct i2c_client *client,
 
 	dev_notice(&client->dev, "BMA2x2 driver probe successfully");
 
-	bma2x2_power_ctl(data, false);
+	//bma2x2_power_ctl(data, false);
 	return 0;
 
 remove_bst_acc_sysfs_exit:
@@ -7405,6 +7556,7 @@ free_input_interrupt_dev_exit:
 free_input_dev_exit:
 	input_free_device(dev);
 free_irq_exit:
+	wake_lock_destroy(&data->bma_wake_lock);
 disable_power_exit:
 	bma2x2_power_ctl(data, false);
 deinit_power_exit:
@@ -7420,6 +7572,34 @@ kfree_exit:
 exit:
 	return err;
 }
+
+#if defined(CONFIG_FB)
+static int fb_notifier_callback(struct notifier_block *self,
+				 unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+	int *blank;
+	struct bma2x2_data *bma2x2_data =
+		container_of(self, struct bma2x2_data, fb_notif);
+
+	if (evdata && evdata->data && event == FB_EVENT_BLANK &&
+			bma2x2_data && bma2x2_data->bma2x2_client) {
+		blank = evdata->data;
+		if (*blank == FB_BLANK_UNBLANK){
+			//ft5x06_ts_resume(&ft5x06_data->client->dev);
+			dev_dbg(&bma2x2_data->bma2x2_client->dev,"%s, call bma2x2_resume\n",__func__);	
+			bma2x2_resume(bma2x2_data->bma2x2_client);
+		}	
+		else if (*blank == FB_BLANK_POWERDOWN){
+			//ft5x06_ts_suspend(&ft5x06_data->client->dev);
+			dev_dbg(&bma2x2_data->bma2x2_client->dev,"%s, call bma2x2_suspend\n",__func__);	
+			bma2x2_suspend(bma2x2_data->bma2x2_client);
+		}
+	}
+
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void bma2x2_early_suspend(struct early_suspend *h)
@@ -7459,6 +7639,12 @@ static int bma2x2_remove(struct i2c_client *client)
 	struct bma2x2_data *data = i2c_get_clientdata(client);
 
 	sensors_classdev_unregister(&data->cdev);
+	
+#if defined(CONFIG_FB)
+	if (fb_unregister_client(&data->fb_notif))
+		dev_err(&client->dev, "Error occurred while unregistering fb_notifier.\n");
+#endif
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&data->early_suspend);
 #endif
@@ -7490,7 +7676,9 @@ static int bma2x2_remove(struct i2c_client *client)
 	if (data->pdata && (client->dev.of_node))
 		devm_kfree(&client->dev, data->pdata);
 	data->pdata = NULL;
-
+	
+	wake_lock_destroy(&data->bma_wake_lock);
+	
 	kfree(data);
 
 	return 0;
@@ -7522,11 +7710,63 @@ static int bma2x2_store_state(struct i2c_client *client,
 	return err;
 }
 
+static int bma2x2_suspend(struct i2c_client *client)
+{
+	struct bma2x2_data *data = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev,"%s\n",__func__);	
+	data->suspend_state.powerEn = bma2x2_is_power_enabled(data);
+
+	if(atomic_read(&data->double_tap_flag) == 1){
+			
+		if (atomic_read(&data->enable) == 1) {	
+			cancel_delayed_work_sync(&data->work);
+			atomic_set(&data->enable, 0);
+		}
+		bma2x2_set_mode(data->bma2x2_client,    
+				BMA2X2_MODE_LOWPOWER2);
+		if(atomic_read(&data->en_double_tap)==0)    
+    		{
+        		enable_irq_wake(client->irq);
+	    		bma2x2_set_Int_Enable(client, 9, 1);
+        		bma2x2_set_int1_pad_sel_2tap(client,1);
+        		atomic_set(&data->en_double_tap,1);
+		}
+	}else {	
+		bma2x2_set_enable(&client->dev, 0);
+	}
+	return 0;
+}
+
+static int bma2x2_resume(struct i2c_client *client)
+{
+	struct bma2x2_data *data = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev,"%s\n",__func__);	
+	
+	if(atomic_read(&data->double_tap_flag) == 1) {
+		if(atomic_read(&data->en_double_tap)==1)    
+   		{
+   			 bma2x2_set_Int_Enable(client, 9, 0);
+       			 bma2x2_set_int1_pad_sel_2tap(client,0);
+       			 disable_irq_wake(client->irq);
+      			 atomic_set(&data->en_double_tap,0);    
+		}
+	}
+	
+	if (data->suspend_state.powerEn)
+		bma2x2_set_enable(&client->dev, 1);
+
+	return 0;
+}
+
+/*
 #ifdef CONFIG_PM
 static int bma2x2_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct bma2x2_data *data = i2c_get_clientdata(client);
 
+	printk("pjn debug entry %s\n",__func__);
 	data->suspend_state.powerEn = bma2x2_is_power_enabled(data);
 	bma2x2_set_enable(&client->dev, 0);
 	return 0;
@@ -7536,6 +7776,7 @@ static int bma2x2_resume(struct i2c_client *client)
 {
 	struct bma2x2_data *data = i2c_get_clientdata(client);
 
+	printk("pjn debug entry %s\n",__func__);
 	if (data->suspend_state.powerEn)
 		bma2x2_set_enable(&client->dev, 1);
 
@@ -7547,7 +7788,8 @@ static int bma2x2_resume(struct i2c_client *client)
 #define bma2x2_suspend      NULL
 #define bma2x2_resume       NULL
 
-#endif /* CONFIG_PM */
+#endif*/ /* CONFIG_PM */
+
 
 static const struct i2c_device_id bma2x2_id[] = {
 	{ SENSOR_NAME, 0 },
@@ -7567,8 +7809,8 @@ static struct i2c_driver bma2x2_driver = {
 		.name   = SENSOR_NAME,
 		.of_match_table = bma2x2_of_match,
 	},
-	.suspend    = bma2x2_suspend,
-	.resume     = bma2x2_resume,
+	//.suspend    = bma2x2_suspend,
+	//.resume     = bma2x2_resume,
 	.id_table   = bma2x2_id,
 	.probe      = bma2x2_probe,
 	.remove     = bma2x2_remove,
