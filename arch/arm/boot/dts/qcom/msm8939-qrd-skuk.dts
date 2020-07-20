@@ -20,34 +20,33 @@
 };
 
 &i2c_4 {
-	smb1360_otg_supply: smb1360-chg-fg@14 {
-		compatible = "qcom,smb1360-chg-fg";
-		reg = <0x14>;
-		interrupt-parent = <&msm_gpio>;
-		interrupts = <62 2>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&smb_int_default>;
-		qcom,stat-pulsed-irq;
-		qcom,chg-inhibit-disabled;
+	smb358_otg_supply: smb358-charger@6A {
+		compatible = "qcom,smb358-charger";
+		reg = <0x6A>;
+		qcom,irq-gpio = <&msm_gpio 62 2>;
+		vcc-i2c-supply = <&pm8916_l5>;
 		qcom,float-voltage-mv = <4350>;
-		qcom,iterm-ma = <200>;
-		qcom,charging-timeout = <384>;
-		qcom,otg-batt-curr-limit = <950>;
-		qcom,recharge-thresh-mv = <100>;
-		qcom,thermal-mitigation = <1500 700 600 0>;
-		qcom,fg-auto-recharge-soc = <99>;
-		qcom,empty-soc-disabled;
-		regulator-name = "smb1360_otg_vreg";
-		qcom,awake-min-soc;
-		qcom,batt-profile-select;
-		qcom,smb1360-vadc = <&pm8916_vadc>;
-		qcom,batt-id-vref-uv = <1800000>;
-		qcom,batt-id-rpullup-kohm = <100>;
-		qcom,profile-a-rid-kohm = <33>;
-		qcom,profile-b-rid-kohm = <91>;
-		qcom,config-hard-thresholds;
-		qcom,hot-bat-decidegc = <550>;
-		qcom,cold-bat-decidegc = <(-150)>;
+		qcom,recharge-mv = <50>;
+		qcom,chg-vadc = <&pm8916_vadc>;
+		qcom,chg-adc_tm = <&pm8916_adc_tm>;
+		qcom,chg-inhibit-disabled;
+		qcom,bms-controlled-charging;
+		qcom,using-pmic-therm;
+		qcom,chg-green = <&msm_gpio 119 2>;
+		qcom,chg-blue = <&msm_gpio 8 2>;
+		regulator-name = "smb358_otg_vreg";
+		qcom,fastchg-current-max-ma = <1800>;
+		qcom,iterm-ma = <100>;
+		qcom,bms-psy-name = "bms";
+		qcom,hot-bat-decidegc = <500>;
+		qcom,cold-bat-decidegc = <0>;
+		qcom,bat-present-decidegc = <200>;
+		qcom,warm-bat-decidegc = <450>;
+		qcom,cool-bat-decidegc = <150>;
+		qcom,warm-bat-ma = <1800>;
+		qcom,cool-bat-ma = <720>;
+		qcom,warm-bat-mv = <4100>;
+		qcom,cool-bat-mv = <4350>;
 	};
 };
 
@@ -55,8 +54,16 @@
 	status = "ok";
 	qcom,use-external-charger;
 };
+/ {
+	qrd_batterydata: qcom,battery-data {
+		qcom,rpull-up-kohm = <100>;
+		qcom,vref-batt-therm = <1800000>;
 
+		#include "batterydata-qrd-skuk-scud-4v35-3600mah.dtsi"
+		#include "batterydata-qrd-skuk-xwd-4v35-3500mah.dtsi"
+	};
+};
 &pm8916_bms {
 	status = "ok";
-	qcom,disable-bms;
+	qcom,battery-data = <&qrd_batterydata>;
 };

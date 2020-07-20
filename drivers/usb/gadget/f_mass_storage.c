@@ -315,6 +315,7 @@ struct fsg_common {
 	char inquiry_string[8 + 16 + 4 + 1];
 
 	struct kref		ref;
+	int bicr;
 };
 
 struct fsg_config {

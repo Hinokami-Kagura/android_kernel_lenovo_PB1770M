@@ -21,7 +21,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart_console_sleep>;
 };
-
+#if 0
 &soc {
 	i2c@78ba000 { /* BLSP1 QUP6 */
 		nfc-nci@e {
@@ -43,13 +43,13 @@
 		};
 	};
 };
-
+#endif
 &spmi_bus {
 	qcom,pm8916@1 {
 		qcom,vibrator@c000 {
 			status = "okay";
 			qcom,vib-timeout-ms = <15000>;
-			qcom,vib-vtg-level-mV = <3100>;
+			qcom,vib-vtg-level-mV = <2700>;
 		};
 	};
 
@@ -64,6 +64,21 @@
 				qcom,max-current = <40>;
 				qcom,current-setting = <5>;
 				qcom,id = <6>;
+				qcom,mode = "manual";
+				qcom,source-sel = <1>;
+				qcom,mode-ctrl = <0x60>;
+			};
+		};
+		qcom,leds@c100 {
+			status = "okay";
+			qcom,led_gpio_2 {
+				label = "gpio";
+				linux,name = "chg_red";
+				linux,default-trigger = "none";
+				qcom,default-state = "off";
+				qcom,max-current = <5>;
+				qcom,current-setting = <5>;
+				qcom,id = <8>;
 				qcom,mode = "manual";
 				qcom,source-sel = <1>;
 				qcom,mode-ctrl = <0x60>;
@@ -115,6 +130,17 @@
 	};
 };
 
+&pm8916_mpps {
+	mpp@a300 { /* MPP 4 */
+		/* Backlight PWM */
+		qcom,mode = <1>;		/* Digital output */
+		qcom,invert = <0>;		/* Disable invert */
+		qcom,src-sel = <4>;		/* DTEST1 */
+		qcom,vin-sel = <0>;		/* VPH_PWR */
+		qcom,master-en = <0>;		/* Enable MPP */
+	};
+};
+
 &sdhc_1 {
 	vdd-supply = <&pm8916_l8>;
 	qcom,vdd-voltage-level = <2900000 2900000>;
@@ -157,7 +183,7 @@
 			1 &intc 0 221 0
 			2 &msm_gpio 38 0>;
 	interrupt-names = "hc_irq", "pwr_irq", "status_irq";
-	cd-gpios = <&msm_gpio 38 0x0>;
+	cd-gpios = <&msm_gpio 38 0x1>;
 
 	status = "ok";
 };

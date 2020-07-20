@@ -76,6 +76,9 @@ obj-$(CONFIG_SENSORS_LIS3DH)		+= lis3dh_acc.o
 obj-$(CONFIG_SENSORS_BMA2X2)	+= bstclass.o
 
 obj-$(CONFIG_SENSORS_BMA2X2)	+= bma2x2.o
+obj-$(CONFIG_SENSORS_LTR559)    += ltr559.o
+obj-$(CONFIG_SENSORS_MMC3524X)		+= mmc3524x.o
+obj-$(CONFIG_SENSORS_HALL)	   += hall_sensor.o
 
 ifeq ($(CONFIG_SENSORS_BMA2X2_ENABLE_INT1),y)
 	EXTRA_CFLAGS += -DBMA2X2_ENABLE_INT1

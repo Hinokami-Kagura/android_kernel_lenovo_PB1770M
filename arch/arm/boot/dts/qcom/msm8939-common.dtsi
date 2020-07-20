@@ -31,7 +31,8 @@
 		i2c4 = &i2c_4;
 		i2c5 = &i2c_5;
 		i2c6 = &i2c_6;
-		spi0 = &spi_0;
+		i2c3 = &i2c_3;
+		//spi0 = &spi_0;
 		spi5 = &spi_5;
 	};
 
@@ -61,6 +62,14 @@
 			linux,remove-completely;
 			reg = <0x0 0x8bd00000 0x0 0x0600000>;
 			label = "peripheral_mem";
+		};
+
+		pstore_reserve_mem: pstore_reserve_mem_region@0 {
+			linux,reserve-contiguous-region;
+			linux,reserve-region;
+			linux,remove-completely;
+			reg = <0x0 0x9ff00000 0x0 0x00100000>;
+			label = "pstore_reserve_mem";
 		};
 
 		venus_mem: venus_region@0 {
@@ -789,7 +798,7 @@
 		qcom,vdd-voltage-level = <1 5 7>;
 
 		qcom,hsusb-otg-phy-init-seq =
-			<0x44 0x80 0x6B 0x81 0x24 0x82 0x13 0x83 0xffffffff>;
+			<0x74 0x80 0x6D 0x81 0x3F 0x82 0x33 0x83 0xffffffff>;
 		qcom,hsusb-otg-phy-type = <2>;
 		qcom,hsusb-otg-mode = <1>;
 		qcom,hsusb-otg-otg-control = <2>;
@@ -907,6 +916,7 @@
 		qcom,master-id = <86>;
 	};
 
+#if 0
 	spi_0: spi@78b7000 { /* BLSP1 QUP3 */
 		compatible = "qcom,spi-qup-v2";
 		#address-cells = <1>;
@@ -931,6 +941,32 @@
 		qcom,bam-producer-pipe-index = <9>;
 		qcom,master-id = <86>;
 		};
+#endif
+
+	i2c_3: i2c@78b7000 { /* BLSP1 QUP2 */
+		compatible = "qcom,i2c-msm-v2";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg-names = "qup_phys_addr", "bam_phys_addr";
+		reg = <0x78b7000 0x600>,
+		      <0x7884000 0x23000>;
+		interrupt-names = "qup_irq", "bam_irq";
+		interrupts = <0 97 0>, <0 238 0>;
+		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
+			 <&clock_gcc clk_gcc_blsp1_qup3_i2c_apps_clk>;
+		clock-names = "iface_clk", "core_clk";
+		qcom,clk-freq-out = <100000>;
+		qcom,clk-freq-in  = <19200000>;
+		pinctrl-names = "i2c_active", "i2c_sleep";
+		pinctrl-0 = <&i2c_3_active>;
+		pinctrl-1 = <&i2c_3_sleep>;
+		qcom,noise-rjct-scl = <0>;
+		qcom,noise-rjct-sda = <0>;
+		qcom,bam-pipe-idx-cons = <8>;
+		qcom,bam-pipe-idx-prod = <9>;
+		qcom,master-id = <86>;
+	};
+
 
 	i2c_4: i2c@78b8000 { /* BLSP1 QUP4 */
 		compatible = "qcom,i2c-msm-v2";

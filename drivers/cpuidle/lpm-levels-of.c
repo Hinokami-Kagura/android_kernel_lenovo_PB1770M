@@ -673,6 +673,12 @@ struct lpm_cluster *parse_cluster(struct device_node *node,
 		}
 	}
 
+	//[ start ] li.xujie@byd.com 20150623 add it for little penguin problem (come from Qualcomm Eric : jiacangl@qti.qualcomm.com)
+
+	c->last_level = c->nlevels-1;
+
+	//[ end ] 
+
 	return c;
 
 failed_parse_cluster:
