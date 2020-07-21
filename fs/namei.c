@@ -38,6 +38,9 @@
 #include <asm/uaccess.h>
 
 #include "internal.h"
+#ifdef CONFIG_ODM_FS_DATA_PT_CHECK
+#include <linux/data_pt_check.h>
+#endif
 #include "mount.h"
 
 /* [Feb-1997 T. Schoebel-Theuer]
@@ -2732,6 +2735,13 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 		error = security_path_mknod(&nd->path, dentry, mode, 0);
 		if (error)
 			goto out_dput;
+#ifdef CONFIG_ODM_FS_DATA_PT_CHECK
+        	error = vfs_check_current(&nd->path);
+        	if (error){
+                    error = -ENOSPC;
+                    goto out_dput;
+              }
+#endif
 		error = vfs_create2(mnt, dir->d_inode, dentry, mode,
 				   nd->flags & LOOKUP_EXCL);
 		if (error)
@@ -3570,6 +3580,9 @@ int vfs_unlink2(struct vfsmount *mnt, struct inode *dir, struct dentry *dentry)
 
 	/* We don't d_delete() NFS sillyrenamed files--they still exist. */
 	if (!error && !(dentry->d_flags & DCACHE_NFSFS_RENAMED)) {
+#ifdef CONFIG_ODM_FS_DATA_PT_CHECK
+		fsnotify_mount_root(dentry, FS_ATTRIB, NULL, 0);
+#endif
 		fsnotify_link_count(dentry->d_inode);
 		d_delete(dentry);
 	}
@@ -4003,6 +4016,22 @@ int vfs_rename2(struct vfsmount *mnt,
 		error = vfs_rename_dir(mnt, old_dir,old_dentry,new_dir,new_dentry);
 	else
 		error = vfs_rename_other(old_dir,old_dentry,new_dir,new_dentry);
+#ifdef CONFIG_ODM_FS_DATA_PT_CHECK
+	if(!error){
+		u32 fs_cookie = fsnotify_get_cookie();
+		__u32 old_dir_mask = (FS_EVENT_ON_CHILD | FS_MOVED_FROM);
+		__u32 new_dir_mask = (FS_EVENT_ON_CHILD | FS_MOVED_TO);
+		if (old_dir == new_dir)
+			old_dir_mask |= FS_DN_RENAME;
+
+		if (is_dir) {
+			old_dir_mask |= FS_ISDIR;
+			new_dir_mask |= FS_ISDIR;
+		}
+		fsnotify_mount_root(old_dentry, old_dir_mask, old_name, fs_cookie);
+		fsnotify_mount_root(new_dentry, new_dir_mask, NULL, fs_cookie);
+	}
+#endif
 	if (!error)
 		fsnotify_move(old_dir, new_dir, old_name.name, is_dir,
 			      new_dentry->d_inode, old_dentry);
