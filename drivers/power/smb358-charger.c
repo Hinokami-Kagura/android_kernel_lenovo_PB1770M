@@ -324,6 +324,7 @@ static int __smb358_read_reg(struct smb358_charger *chip, u8 reg, u8 *val)
 static int __smb358_write_reg(struct smb358_charger *chip, int reg, u8 val)
 {
 	s32 ret;
+
 	ret = i2c_smbus_write_byte_data(chip->client, reg, val);
 	if (ret < 0) {
 		dev_err(chip->dev,
@@ -2657,6 +2658,7 @@ static int smb358_charger_probe(struct i2c_client *client,
 			"Couldn't determine initial state rc=%d\n", rc);
 		goto fail_smb358_hw_init;
 	}
+
 	/* We will not use it by default */
 	if (gpio_is_valid(chip->chg_valid_gpio)) {
 		rc = gpio_request(chip->chg_valid_gpio, "smb358_chg_valid");
@@ -2688,6 +2690,7 @@ static int smb358_charger_probe(struct i2c_client *client,
 
 	chip->irq_gpio = of_get_named_gpio_flags(chip->dev->of_node,
 				"qcom,irq-gpio", 0, NULL);
+
 	/* STAT irq configuration */
 	if (gpio_is_valid(chip->irq_gpio)) {
 		rc = gpio_request(chip->irq_gpio, "smb358_irq");
