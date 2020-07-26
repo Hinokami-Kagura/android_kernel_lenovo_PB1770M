@@ -88,7 +88,6 @@ obj-$(CONFIG_SENSORS_YL_PARAMS)		+= yl_sensor_params.o
 
 obj-$(CONFIG_SENSORS_BMA2X2)	+= bma2x2.o
 obj-$(CONFIG_SENSORS_LTR553)	+= ltr553.o
-obj-$(CONFIG_SENSORS_LTR559)	+= ltr559-lc.o
 
 obj-$(CONFIG_SENSORS_LTR559)    += ltr559.o
 obj-$(CONFIG_SENSORS_MMC3524X)		+= mmc3524x.o
