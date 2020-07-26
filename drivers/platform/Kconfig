@@ -14,4 +14,4 @@ source "drivers/platform/msm/Kconfig"
 source "drivers/platform/wingtech/Kconfig"
 source "drivers/platform/yulong/Kconfig"
 source "drivers/platform/lenovo/Kconfig"
-endifendif
+endif
