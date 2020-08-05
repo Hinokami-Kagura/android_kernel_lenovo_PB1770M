@@ -193,7 +193,6 @@ static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq,
 	int val, level = 0;
 	static int busy_bin, frame_flag;
 	unsigned int scm_data[3];
-	static int busy_bin, frame_flag;
 
 	/* keeps stats.private_data == NULL   */
 
