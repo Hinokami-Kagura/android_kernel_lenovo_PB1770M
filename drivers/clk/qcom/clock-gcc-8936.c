@@ -835,16 +835,10 @@ static struct clk_freq_tbl ftbl_gcc_oxili_gfx3d_clk[] = {
 	F( 200000000,      gpll0_out_main,   4,	  0,	0),
 	F( 220000000,      gpll3_out_main,   5,	  0,	0),
 	F( 266670000,      gpll0_out_main,   3,	  0,	0),
-	F( 285000000,      gpll3_out_main,   3,   0,    0),
-	F( 310000000,	   gpll2_gfx3d,	     3,	  0,	0),
-	F( 385000000,      gpll2_gfx3d,      2,	  0,	0),
-	F( 435000000,      gpll3_out_main,   2,	  0,	0),
-	F( 465000000,      gpll2_gfx3d,      2,   0,    0),
-	F( 525000000,	   gpll2_gfx3d,      2,   0,	0),
-	F( 550000000,      gpll3_out_main,   2,   0,    0),
-	F( 600000000,      gpll3_out_main,   2,   0,    0),
-	F( 650000000,      gpll2_gfx3d,      2,   0,    0),
-	F( 700000000, 	   gpll3_out_main,   2,   0,    0),
+	F( 310000000,	gpll2_gfx3d,	3,	  0,	0),
+	F( 400000000,      gpll0_out_main,   2,	  0,	0),
+	F( 465000000,      gpll2_gfx3d,   2,    0,    0),
+	F( 550000000,      gpll3_out_main,   2,    0,    0),
 	F_END
 };
 
@@ -1053,7 +1047,7 @@ static struct clk_freq_tbl ftbl_gcc_blsp1_uart1_6_apps_clk[] = {
 	F(   7372800,	   gpll0_out_main,   1,	144, 15625),
 	F(  14745600,	   gpll0_out_main,   1,	288, 15625),
 	F(  16000000,	   gpll0_out_main,  10,	  1,	5),
-	F(  19200000,	   	    gcc_xo,   1,	  0,	0),
+	F(  19200000,	      gcc_xo,   1,	  0,	0),
 	F(  24000000,	   gpll0_out_main,   1,	  3,  100),
 	F(  25000000,	   gpll0_out_main,  16,	  1,	2),
 	F(  32000000,	   gpll0_out_main,   1,	  1,   25),
@@ -3680,4 +3674,4 @@ static int __init msm_gcc_mdss_init(void)
 {
 	return platform_driver_register(&msm_clock_gcc_mdss_driver);
 }
-fs_initcall_sync(msm_gcc_mdss_init);F
+fs_initcall_sync(msm_gcc_mdss_init);
