@@ -94,6 +94,16 @@
 	
 	sound {
 		qcom,mbhc-headset-en-gpio = <&msm_gpio 108 0>;
+		qcom,audio-routing =
+			"RX_BIAS", "MCLK",
+			"SPK_RX_BIAS", "MCLK",
+			"INT_LDO_H", "MCLK",
+			"MIC BIAS External", "Digital Mic1",
+			"MIC BIAS Internal2", "Headset Mic",
+			"MIC BIAS External", "Digital Mic2",
+			"DMIC1", "MIC BIAS External",
+			"AMIC2", "MIC BIAS Internal2",
+			"DMIC2", "MIC BIAS External";
 		pinctrl-0 = <&cdc_pdm_lines_act &cdc_dmic_lines_act>;
 		pinctrl-1 = <&cdc_pdm_lines_sus &cdc_dmic_lines_sus>;
 	};
