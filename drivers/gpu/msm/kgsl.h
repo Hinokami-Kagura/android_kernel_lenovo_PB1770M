@@ -24,11 +24,12 @@
 #include <linux/cdev.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mm.h>
+#include <linux/kthread.h>
 
 /* The number of memstore arrays limits the number of contexts allowed.
  * If more contexts are needed, update multiple for MEMSTORE_SIZE
  */
-#define KGSL_MEMSTORE_SIZE	((int)(PAGE_SIZE * 2))
+#define KGSL_MEMSTORE_SIZE	((int)(PAGE_SIZE * 8))
 #define KGSL_MEMSTORE_GLOBAL	(0)
 #define KGSL_PRIORITY_MAX_RB_LEVELS 4
 #define KGSL_MEMSTORE_MAX	(KGSL_MEMSTORE_SIZE / \
@@ -94,6 +95,8 @@ struct kgsl_driver {
 		unsigned int mapped_max;
 	} stats;
 	unsigned int full_cache_threshold;
+	struct kthread_worker worker;
+	struct task_struct *worker_thread;
 };
 
 extern struct kgsl_driver kgsl_driver;
@@ -191,9 +194,9 @@ struct kgsl_mem_entry {
 	unsigned int id;
 	struct kgsl_process_private *priv;
 	int pending_free;
-	struct kgsl_device_private *dev_priv;
 };
 
+struct kgsl_device_private;
 struct kgsl_event_group;
 
 typedef void (*kgsl_event_func)(struct kgsl_device *, struct kgsl_event_group *,
@@ -220,7 +223,7 @@ struct kgsl_event {
 	void *priv;
 	struct list_head node;
 	unsigned int created;
-	struct work_struct work;
+	struct kthread_work work;
 	int result;
 	struct kgsl_event_group *group;
 };
@@ -316,20 +319,6 @@ extern const struct dev_pm_ops kgsl_pm_ops;
 int kgsl_suspend_driver(struct platform_device *pdev, pm_message_t state);
 int kgsl_resume_driver(struct platform_device *pdev);
 
-#ifdef CONFIG_MSM_KGSL_DRM
-extern int kgsl_drm_init(struct platform_device *dev);
-extern void kgsl_drm_exit(void);
-#else
-static inline int kgsl_drm_init(struct platform_device *dev)
-{
-	return 0;
-}
-
-static inline void kgsl_drm_exit(void)
-{
-}
-#endif
-
 static inline int kgsl_gpuaddr_in_memdesc(const struct kgsl_memdesc *memdesc,
 				unsigned int gpuaddr, size_t size)
 {
@@ -397,13 +386,16 @@ static inline int timestamp_cmp(unsigned int a, unsigned int b)
 static inline int
 kgsl_mem_entry_get(struct kgsl_mem_entry *entry)
 {
-	return kref_get_unless_zero(&entry->refcount);
+	if (entry)
+		return kref_get_unless_zero(&entry->refcount);
+	return 0;
 }
 
 static inline void
 kgsl_mem_entry_put(struct kgsl_mem_entry *entry)
 {
-	kref_put(&entry->refcount, kgsl_mem_entry_destroy);
+	if (entry)
+		kref_put(&entry->refcount, kgsl_mem_entry_destroy);
 }
 
 /*
