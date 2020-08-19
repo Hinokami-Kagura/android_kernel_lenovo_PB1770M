@@ -92,7 +92,7 @@
 		hall,inactive_code = <149>;
 		hall,debounce-interval = <20>;
 	};
-	
+
 	sound {
 		qcom,mbhc-headset-en-gpio = <&msm_gpio 108 0>;
 		qcom,audio-routing =
@@ -108,8 +108,7 @@
 		pinctrl-0 = <&cdc_pdm_lines_act &cdc_dmic_lines_act>;
 		pinctrl-1 = <&cdc_pdm_lines_sus &cdc_dmic_lines_sus>;
 	};
-	
-	
+
 };
 
 &i2c_0 { /* BLSP1 QUP2 */
