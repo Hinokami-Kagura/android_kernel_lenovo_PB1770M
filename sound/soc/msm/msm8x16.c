@@ -285,6 +285,8 @@ struct cdc_pdm_pinctrl_info {
 	struct pinctrl_state *cdc_lines_act;
 	struct pinctrl_state *cross_conn_det_sus;
 	struct pinctrl_state *cross_conn_det_act;
+	struct pinctrl_state *cdc_lines_dmic_act;
+	struct pinctrl_state *cdc_lines_dmic_sus;
 };
 
 struct ext_cdc_tlmm_pinctrl_info {
@@ -1273,7 +1275,6 @@ static int msm8x16_mclk_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
 	struct msm8916_asoc_mach_data *pdata = NULL;
-	int ret = 0;
 
 	pdata = snd_soc_card_get_drvdata(w->codec->card);
 	pr_debug("%s: event = %d\n", __func__, event);
@@ -1291,11 +1292,6 @@ static int msm8x16_mclk_event(struct snd_soc_dapm_widget *w,
 				/* disable the codec mclk config*/
 				msm8x16_wcd_mclk_enable(w->codec, 0, true);
 				msm8x16_enable_codec_ext_clk(w->codec, 0, true);
-				ret = pinctrl_select_state(pinctrl_info.pinctrl,
-						pinctrl_info.cdc_lines_sus);
-				if (ret < 0)
-					pr_err("%s: error during pinctrl state select\n",
-							__func__);
 			}
 		} else {
 			 msm8x16_enable_extcodec_ext_clk(w->codec, 0, true);
@@ -1770,7 +1766,7 @@ static void *def_msm8x16_wcd_mbhc_cal(void)
 	}
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(msm8x16_wcd_cal)->X) = (Y))
-	S(v_hs_max, 1500);
+	S(v_hs_max, 1600);
 #undef S
 #define S(X, Y) ((WCD_MBHC_CAL_BTN_DET_PTR(msm8x16_wcd_cal)->X) = (Y))
 	S(num_btn, WCD_MBHC_DEF_BUTTONS);

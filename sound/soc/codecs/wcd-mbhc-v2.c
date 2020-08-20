@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/of_gpio.h>
+#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/printk.h>
@@ -39,7 +40,7 @@
 				  SND_JACK_BTN_4 | SND_JACK_BTN_5 | \
 				  SND_JACK_BTN_6 | SND_JACK_BTN_7)
 #define OCP_ATTEMPT 1
-#define HS_DETECT_PLUG_TIME_MS (3 * 1000)
+#define HS_DETECT_PLUG_TIME_MS (1 * 500)
 #define SPECIAL_HS_DETECT_TIME_MS (2 * 1000)
 #define MBHC_BUTTON_PRESS_THRESHOLD_MIN 250
 #define GND_MIC_SWAP_THRESHOLD 4
@@ -53,6 +54,7 @@
 #define WCD_MBHC_BTN_PRESS_COMPL_TIMEOUT_MS  50
 
 static int det_extn_cable_en;
+static int mbhc_headset_en;
 module_param(det_extn_cable_en, int,
 		S_IRUGO | S_IWUSR | S_IWGRP);
 MODULE_PARM_DESC(det_extn_cable_en, "enable/disable extn cable detect");
@@ -64,6 +66,35 @@ enum wcd_mbhc_cs_mb_en_flag {
 	WCD_MBHC_EN_NONE,
 };
 
+static  int headset_status=0;
+static struct kobject *android_headset_ftobj;
+static ssize_t headset_state_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	ssize_t num_read_chars = 0;
+	num_read_chars = sprintf(buf, " %d\n", headset_status);
+	return num_read_chars;
+}
+static DEVICE_ATTR(state, S_IRUGO | S_IWUSR, headset_state_show,
+		NULL);
+static int headset_state_sysfs_init(void)
+{
+	int ret;
+	android_headset_ftobj = kobject_create_and_add("android_headset",NULL);
+	if (android_headset_ftobj == NULL)
+	{
+		printk(KERN_ERR "touch_ERR: subsystem_register failed\n");
+		ret = -ENOMEM;
+		return ret;
+	}
+	ret = sysfs_create_file(android_headset_ftobj, &dev_attr_state.attr);
+	if (ret)
+	{
+		printk(KERN_ERR "TOUCH_ERR: create_file state failed\n");
+		return ret;
+	}
+	return 0;
+
+}
 static void wcd_mbhc_jack_report(struct wcd_mbhc *mbhc,
 				struct snd_soc_jack *jack, int status, int mask)
 {
@@ -676,6 +707,7 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 				    WCD_MBHC_JACK_MASK);
 		wcd_mbhc_clr_and_turnon_hph_padac(mbhc);
 	}
+	headset_status = mbhc->hph_status;
 	pr_debug("%s: leave hph_status %x\n", __func__, mbhc->hph_status);
 }
 
@@ -1045,7 +1077,7 @@ correct_plug_type:
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 1);
 
 		/* allow sometime and re-check stop requested again */
-		msleep(20);
+		msleep(100);
 		if (mbhc->hs_detect_work_stop) {
 			pr_debug("%s: stop requested: %d\n", __func__,
 					mbhc->hs_detect_work_stop);
@@ -1317,9 +1349,14 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 		if (mbhc->mbhc_cb->enable_mb_source)
 			mbhc->mbhc_cb->enable_mb_source(codec, true);
 		mbhc->btn_press_intr = false;
+		/*===wzj===when heaset insertion set mbhc_detect_gpio 1(delay 200mS)*/
+		msleep(200);
+		gpio_direction_output(mbhc_headset_en,1);
 		wcd_mbhc_detect_plug_type(mbhc);
 	} else if ((mbhc->current_plug != MBHC_PLUG_TYPE_NONE)
 			&& !detection_type) {
+	    /*===wzj===when heaset removal set mbhc_detect_gpio 0*/
+	    gpio_direction_output(mbhc_headset_en,0);
 		/* Disable external voltage source to micbias if present */
 		if (mbhc->mbhc_cb->enable_mb_source)
 			mbhc->mbhc_cb->enable_mb_source(codec, false);
@@ -1375,6 +1412,8 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 		/* Disable HW FSM */
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 0);
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_BTN_ISRC_CTL, 0);
+                /*===wzj===when heaset removal set mbhc_detect_gpio 0*/
+		gpio_direction_output(mbhc_headset_en,0);
 	}
 
 	mbhc->in_swch_irq_handler = false;
@@ -1435,7 +1474,7 @@ static int wcd_mbhc_get_button_mask(struct wcd_mbhc *mbhc)
 	default:
 		break;
 	}
-
+	printk("%s mask %x \n",__func__,mask);
 	return mask;
 }
 
@@ -1448,6 +1487,9 @@ static irqreturn_t wcd_mbhc_hs_ins_irq(int irq, void *data)
 	static u16 mic_trigerred;
 
 	pr_debug("%s: enter\n", __func__);
+	/*===wzj===when heaset insertion set mbhc_detect_gpio 1*/
+	gpio_direction_output(mbhc_headset_en,1);
+
 	if (!mbhc->mbhc_cfg->detect_extn_cable) {
 		pr_debug("%s: Returning as Extension cable feature not enabled\n",
 			__func__);
@@ -1590,6 +1632,8 @@ static irqreturn_t wcd_mbhc_hs_rem_irq(int irq, void *data)
 		}
 	}
 	WCD_MBHC_RSC_UNLOCK(mbhc);
+	/*===wzj===when heaset removal set mbhc_detect_gpio 0*/
+	gpio_direction_output(mbhc_headset_en,0);
 	pr_debug("%s: leave\n", __func__);
 	return IRQ_HANDLED;
 
@@ -2117,6 +2161,17 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 
 	pr_debug("%s: enter\n", __func__);
 
+    mbhc_headset_en = of_get_named_gpio(card->dev->of_node,"qcom,mbhc-headset-en-gpio", 0);
+	if(!gpio_is_valid(mbhc_headset_en)){
+		pr_err("%s:Invaild mbhc_headset_en gpio: %d\n",__func__,mbhc_headset_en);
+	}
+
+	ret = gpio_request(mbhc_headset_en,"mbhc_headset_en_gpio");
+	if(ret < 0){
+        pr_err("%s:gpio_request: error\n",__func__);
+	}
+	gpio_direction_output(mbhc_headset_en,0);
+
 	ret = of_property_read_u32(card->dev->of_node, hph_switch, &hph_swh);
 	if (ret) {
 		dev_err(card->dev,
@@ -2191,6 +2246,30 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 				__func__);
 			return ret;
 		}
+                ret = snd_jack_set_key(mbhc->button_jack.jack,
+				       SND_JACK_BTN_1,
+				       KEY_MEDIA);
+		if (ret) {
+			pr_err("%s: Failed to set code for btn-1:%d\n",
+					__func__, ret);
+			return ret;
+		}
+		ret = snd_jack_set_key(mbhc->button_jack.jack,
+				       SND_JACK_BTN_2,
+				       KEY_VOLUMEUP);
+		if (ret) {
+			pr_err("%s: Failed to set code for btn-2:%d\n",
+				__func__, ret);
+			return ret;
+		}
+		ret = snd_jack_set_key(mbhc->button_jack.jack,
+				       SND_JACK_BTN_3,
+				       KEY_VOLUMEDOWN);
+		if (ret) {
+			pr_err("%s: Failed to set code for btn-3:%d\n",
+				__func__, ret);
+			return ret;
+		}
 
 		set_bit(INPUT_PROP_NO_DUMMY_RELEASE,
 			mbhc->button_jack.jack->input_dev->propbit);
@@ -2213,6 +2292,8 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 			return ret;
 		}
 	}
+
+	headset_state_sysfs_init();
 
 	init_waitqueue_head(&mbhc->wait_btn_press);
 	mutex_init(&mbhc->codec_resource_lock);
