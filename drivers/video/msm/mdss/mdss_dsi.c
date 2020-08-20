@@ -77,6 +77,7 @@ static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	int i = 0;
 
+	printk("%s\n", __func__);
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		ret = -EINVAL;
@@ -127,15 +128,25 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+	struct mdss_panel_info *pinfo;
 	int i = 0;
 
+	printk("%s\n", __func__);
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
 	}
 
+	pinfo = &pdata->panel_info;
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
+
+	if (!pinfo->cont_splash_enabled) {
+		gpio_request(ctrl_pdata->disp_en_gpio, "disp_enable");
+		gpio_direction_output((ctrl_pdata->disp_en_gpio), 1);
+		msleep(10);
+		gpio_free(ctrl_pdata->disp_en_gpio);
+	}
 
 	for (i = 0; i < DSI_MAX_PM; i++) {
 		/*
@@ -619,6 +630,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	if (mipi->init_delay)
 		usleep(mipi->init_delay);
 
+	mipi->force_clk_lane_hs = 1;
 	if (mipi->force_clk_lane_hs) {
 		u32 tmp;
 
