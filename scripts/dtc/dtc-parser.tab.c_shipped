@@ -73,7 +73,7 @@
 #include "dtc.h"
 #include "srcpos.h"
 
-YYLTYPE yylloc;
+/*YYLTYPE yylloc;*/
 
 extern int yylex(void);
 extern void print_error(char const *fmt, ...);
@@ -1466,7 +1466,7 @@ yybackup:
   else
     {
       yytoken = YYTRANSLATE (yychar);
-      YY_SYMBOL_PRINT ("Next token is", yytoken, &yylval, &yylloc);
+      /*YY_SYMBOL_PRINT ("Next token is", yytoken, &yylval, &yylloc);*/
     }
 
   /* If the proper action on seeing token YYTOKEN is to reduce or to
@@ -1489,7 +1489,7 @@ yybackup:
     yyerrstatus--;
 
   /* Shift the lookahead token.  */
-  YY_SYMBOL_PRINT ("Shifting", yytoken, &yylval, &yylloc);
+  /*YY_SYMBOL_PRINT ("Shifting", yytoken, &yylval, &yylloc);*/
 
   /* Discard the shifted token.  */
   yychar = YYEMPTY;
@@ -2389,7 +2389,7 @@ void print_error(char const *fmt, ...)
 	va_list va;
 
 	va_start(va, fmt);
-	srcpos_verror(&yylloc, fmt, va);
+	/*srcpos_verror(&yylloc, fmt, va);*/
 	va_end(va);
 
 	treesource_error = 1;
