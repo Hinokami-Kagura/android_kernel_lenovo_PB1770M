@@ -36,7 +36,11 @@
 #ifndef EM_METAG
 /* Remove this when these make it to the standard system elf.h. */
 #define EM_METAG      174
+#endif
+#ifndef R_METAG_ADDR32
 #define R_METAG_ADDR32                   2
+#endif
+#ifndef R_METAG_NONE
 #define R_METAG_NONE                     3
 #endif
 
